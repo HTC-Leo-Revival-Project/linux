@@ -105,6 +105,7 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
+#include <linux/simplefb.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/initcall.h>
@@ -871,6 +872,8 @@ void start_kernel(void)
 {
 	char *command_line;
 	char *after_dashes;
+
+	clean_fb();
 
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
