@@ -76,6 +76,10 @@ ENDPROC(__vet_atags)
 	__INIT
 __mmap_switched:
 
+	ldr	r1, =0x02A00000
+	ldr	r2, =0x000C0000
+	ldr	r3, =3333
+
 	mov	r7, r1
 	mov	r8, r2
 	mov	r10, r0
