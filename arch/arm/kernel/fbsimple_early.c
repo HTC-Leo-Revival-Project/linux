@@ -75,12 +75,54 @@ font_params get_font_params() {
         return params;
 }
 
+#define SCREEN_HEIGHT 800
+#define LINE_SPACING 15
+ int textX = 0;
+  int textY = 0;
+  int debug_linecount =0;
 void printkSimple(char *text) {
-	if(debug_linecount > 100 || debug_linecount < 0)
-		debug_linecount = 0;
+   
+   
+    int width = 480;
+    int stride = 4;
+        if (debug_linecount == 10) {
+            // Clear the screen and reset textX and textY
+            clean_fb();
+            textX = 0;
+            textY = 0;
+            debug_linecount =0;
+        }
+    for (int i = 0; text[i] != '\0'; i++) {
 
-//	draw_text((char*)0x2a00000, "[uniLoader] ", 0, (20 + (debug_linecount * 30)), 480, 4);
-	draw_text((char*)0x2a00000, text, 0, (20 + (debug_linecount * 30)), 480, 4);
 
-	debug_linecount++;
+        if (strchr(text, '\n') != NULL) {
+            // Handle newline character by moving to the next line
+            textX = 0;
+            textY += LINE_SPACING;  // Adjust this value as needed for line spacing
+        } else {
+            // Check if there's enough space to render the character
+            if (textX + FONTW <= width) {
+                int ix = font_index(text[i]);
+                unsigned char *img = letters[ix];
+
+                for (int y = 0; y < FONTH; y++) {
+                    unsigned char b = img[y];
+
+                    for (int x = 0; x < FONTW; x++) {
+                        if (((b << x) & 0b10000000) > 0)
+                            draw_pixel((char *)0x2a00000, textX + x, textY + y, width, stride);
+                    }
+                }
+                
+                textX += FONTW;  // Move to the next character position
+            } else {
+                // Move to the next line if there's not enough space
+                textX = 0;
+                textY += LINE_SPACING;  // Adjust this value as needed for line spacing
+            }
+        }
+    }
+    textX =0;
+    textY =  textY + LINE_SPACING ;
+    debug_linecount++;
 }
