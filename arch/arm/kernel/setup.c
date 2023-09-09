@@ -62,6 +62,7 @@
 #include <asm/kasan.h>
 
 #include "atags.h"
+#include <linux/simplefb.h>
 
 
 #if defined(CONFIG_FPE_NWFPE) || defined(CONFIG_FPE_FASTFPE)
@@ -357,18 +358,9 @@ extern struct proc_info_list *lookup_processor_type(unsigned int);
 
 void __init early_print(const char *str, ...)
 {
-	extern void printascii(const char *);
-	char buf[256];
-	va_list ap;
 
-	va_start(ap, str);
-	vsnprintf(buf, sizeof(buf), str, ap);
-	va_end(ap);
+    printkSimple(str);
 
-#ifdef CONFIG_DEBUG_LL
-	printascii(buf);
-#endif
-	printk("%s", buf);
 }
 
 #ifdef CONFIG_ARM_PATCH_IDIV
