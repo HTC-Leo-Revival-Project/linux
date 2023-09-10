@@ -119,7 +119,7 @@ void printkSimple(char *text)
 				unsigned char b = img[y];
 
 				for (int x = 0; x < FONTW; x++) {
-					if (((b << x) & 0b10000000) > 0)
+					if (((b << x) & 0b10000000) > 0 && text[i] != '\n')
 						draw_pixel(
 							(char *)0x2a00000, //we do not want to print \n need to account for this here
 							textX + x, textY + y,
