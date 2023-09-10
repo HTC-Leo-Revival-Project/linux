@@ -2,6 +2,9 @@
 #include "font.h"
 #include "debug.h"
 #include <linux/string.h>
+#include <linux/stdarg.h>
+
+
 
 #define MEMORY_ADDRESS ((void *)0x02a00000)
 #define MEMORY_LENGTH 0x000c0000 // 768 KB
@@ -91,51 +94,136 @@ font_params get_font_params()
 int textX = 0;
 int textY = 0;
 int debug_linecount = 0;
-void printkSimple(char *text)
-{
-	int width = 480;
-	int stride = 4;
-	int l = strlenSimple(text);
-	if (debug_linecount == 10) {
-		// Clear the screen and reset textX and textY
-		clean_fb();
-		textX = 0;
-		textY = 0;
-		debug_linecount = 0;
-	}
-	for (int i = 0; text[i] != '\0'; i++) {
-		// Check if there's enough space to render the character
-		if (textX + FONTW <= width) {
-			int ix = font_index(text[i]);
-			unsigned char *img = letters[ix];
-			 if (text[i] == '\n') {
-				// Handle newline character by moving to the next line
-				textX = 0;
-				textY +=
-					LINE_SPACING; // Adjust this value as needed for line spacing
-			}
+void renderCharacter(char c, int width, int stride) {
+    if (c == '\n') {
+        // Handle newline character by moving to the next line
+        textX = 0;
+        textY += LINE_SPACING;
+        return;
+    }
 
-			for (int y = 0; y < FONTH; y++) {
-				unsigned char b = img[y];
+    // Check if there's enough space to render the character
+    if (textX + FONTW <= width) {
+        int ix = font_index(c);
+        unsigned char *img = letters[ix];
 
-				for (int x = 0; x < FONTW; x++) {
-					if (((b << x) & 0b10000000) > 0 && text[i] != '\n')
-						draw_pixel(
-							(char *)0x2a00000, //we do not want to print \n need to account for this here
-							textX + x, textY + y,
-							width, stride);
-				}
-			}
+        for (int y = 0; y < FONTH; y++) {
+            unsigned char b = img[y];
 
-			textX += FONTW; // Move to the next character position
-		} else {
-			// Move to the next line if there's not enough space
-			textX = 0;
-			textY +=
-				LINE_SPACING; // Adjust this value as needed for line spacing
-		}
-	}
-	textX = 0;
-	textY = textY + LINE_SPACING;
-	debug_linecount++;
+            for (int x = 0; x < FONTW; x++) {
+                if (((b << x) & 0b10000000) > 0) {
+                    draw_pixel((char *)0x2a00000, textX + x, textY + y, width, stride);
+                }
+            }
+        }
+
+        textX += FONTW; // Move to the next character position
+    } else {
+        // Move to the next line if there's not enough space
+        textX = 0;
+        textY += LINE_SPACING;
+    }
+}
+
+void renderString(const char *str, int width, int stride) {
+    for (int i = 0; str[i] != '\0'; i++) {
+        char ch = str[i];
+        renderCharacter(ch, width, stride);
+    }
+}
+
+void renderInteger(int value, int width, int stride) {
+    char buffer[12]; // Assuming 32-bit integers
+    int i = 0;
+    if (value == 0) {
+        buffer[i++] = '0';
+    } else {
+        if (value < 0) {
+            renderCharacter('-', width, stride);
+            value = -value;
+        }
+        while (value > 0) {
+            buffer[i++] = '0' + (value % 10);
+            value /= 10;
+        }
+        // Reverse the characters in the buffer
+        for (int j = 0; j < i / 2; j++) {
+            char temp = buffer[j];
+            buffer[j] = buffer[i - j - 1];
+            buffer[i - j - 1] = temp;
+        }
+    }
+    buffer[i] = '\0';
+    renderString(buffer, width, stride);
+}
+
+void renderHex(unsigned int value, int width, int stride) {
+    char buffer[10]; // Assuming 32-bit hexadecimal
+    int i = 0;
+    while (value > 0) {
+        int digit = value & 0xF;
+        if (digit < 10) {
+            buffer[i++] = '0' + digit;
+        } else {
+            buffer[i++] = 'a' + (digit - 10);
+        }
+        value >>= 4;
+    }
+    if (i == 0) {
+        buffer[i++] = '0';
+    }
+    // Reverse the characters in the buffer
+    for (int j = 0; j < i / 2; j++) {
+        char temp = buffer[j];
+        buffer[j] = buffer[i - j - 1];
+        buffer[i - j - 1] = temp;
+    }
+    buffer[i] = '\0';
+    renderString(buffer, width, stride);
+}
+
+void printkSimple(const char *format, ...) {
+    int width = 480;
+    int stride = 4;
+
+    if (debug_linecount == 10) {
+        // Clear the screen and reset textX and textY
+        clean_fb();
+        textX = 0;
+        textY = 0;
+        debug_linecount = 0;
+    }
+
+    va_list args;
+    va_start(args, format);
+
+    while (*format) {
+        if (*format == '%') {
+            format++;
+            if (*format == 'd') {
+                // Handle integer format
+                int value = va_arg(args, int);
+                renderInteger(value, width, stride);
+            } else if (*format == 'x') {
+                // Handle hexadecimal format
+                unsigned int value = va_arg(args, unsigned int);
+                renderHex(value, width, stride);
+            } else if (*format == 's') {
+                // Handle string format
+                const char *str = va_arg(args, const char *);
+                renderString(str, width, stride);
+            }
+        } else {
+            char c = *format;
+            // Render the character
+            renderCharacter(c, width, stride);
+        }
+        format++;
+    }
+
+    va_end(args);
+
+    textX = 0;
+    textY += LINE_SPACING; // Move to the next line
+    debug_linecount++;
 }
