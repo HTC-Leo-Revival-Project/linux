@@ -10,7 +10,7 @@
 	compatible = "htc,leo", "qcom,qsd8250";
 
 	chosen {
-        bootargs = "earlycon=leoearlycon earlyprintk=on";
+        bootargs = "earlycon=leoearlycon earlyprintk=on keep_bootcon console=efifb";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
