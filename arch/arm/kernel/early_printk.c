@@ -9,6 +9,7 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/simplefb.h>
 
 extern void printascii(const char *);
 
@@ -21,7 +22,8 @@ static void early_write(const char *s, unsigned n)
 		buf[l] = 0;
 		s += l;
 		n -= l;
-		printascii(buf);
+		// printascii(buf);
+		printkSimple(buf);
 	}
 }
 
