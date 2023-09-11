@@ -27,6 +27,6 @@ void draw_horizontal_line(volatile char *fb, int x1, int x2, int y, color c, int
 void draw_vertical_line(volatile char *fb, int x, int y1, int y2, color c, int width, int stride);
 void draw_filled_rectangle(volatile char *fb, int x1, int y1, int w, int h, color c, int width, int stride);
 void draw_text(volatile char *fb, char *text, int textX, int textY, int width, int stride);
-void printkSimple(char *text);
+void printkSimple(const char *format, ...);
 
 #endif

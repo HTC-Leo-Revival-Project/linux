@@ -3,6 +3,7 @@
 #include "debug.h"
 #include <linux/string.h>
 #include <linux/stdarg.h>
+#include <linux/serial_core.h>
 
 
 
@@ -94,7 +95,7 @@ font_params get_font_params()
 int textX = 0;
 int textY = 0;
 int debug_linecount = 0;
-void renderCharacter(char c, int width, int stride) {
+void renderCharacter(char c, int width, int stride, int length) {
     if (c == '\n') {
         // Handle newline character by moving to the next line
         textX = 0;
@@ -103,8 +104,14 @@ void renderCharacter(char c, int width, int stride) {
     }
 
     // Check if there's enough space to render the character
-    if (textX + FONTW <= width) {
-        int ix = font_index(c);
+    if (textX + FONTW >= width /2 ) { //theoretically this should be width/FONTW but whyever width/2 seems to be the magic value here
+        // Move to the next line if there's not enough space
+        textX = 0;
+        textY += LINE_SPACING;
+    }
+    
+    
+            int ix = font_index(c);
         unsigned char *img = letters[ix];
 
         for (int y = 0; y < FONTH; y++) {
@@ -118,28 +125,24 @@ void renderCharacter(char c, int width, int stride) {
         }
 
         textX += FONTW; // Move to the next character position
-    } else {
-        // Move to the next line if there's not enough space
-        textX = 0;
-        textY += LINE_SPACING;
-    }
+
 }
 
-void renderString(const char *str, int width, int stride) {
+void renderString(const char *str, int width, int stride, int length) {
     for (int i = 0; str[i] != '\0'; i++) {
         char ch = str[i];
-        renderCharacter(ch, width, stride);
+        renderCharacter(ch, width, stride,length);
     }
 }
 
-void renderInteger(int value, int width, int stride) {
+void renderInteger(int value, int width, int stride, int length) {
     char buffer[12]; // Assuming 32-bit integers
     int i = 0;
     if (value == 0) {
         buffer[i++] = '0';
     } else {
         if (value < 0) {
-            renderCharacter('-', width, stride);
+            renderCharacter('-', width, stride,length);
             value = -value;
         }
         while (value > 0) {
@@ -154,10 +157,10 @@ void renderInteger(int value, int width, int stride) {
         }
     }
     buffer[i] = '\0';
-    renderString(buffer, width, stride);
+    renderString(buffer, width, stride,length);
 }
 
-void renderHex(unsigned int value, int width, int stride) {
+void renderHex(unsigned int value, int width, int stride, int length) {
     char buffer[10]; // Assuming 32-bit hexadecimal
     int i = 0;
     while (value > 0) {
@@ -179,14 +182,15 @@ void renderHex(unsigned int value, int width, int stride) {
         buffer[i - j - 1] = temp;
     }
     buffer[i] = '\0';
-    renderString(buffer, width, stride);
+    renderString(buffer, width, stride,length);
 }
 
 void printkSimple(const char *format, ...) {
     int width = 480;
     int stride = 4;
+    int l = 0;
 
-    if (debug_linecount == 10) {
+    if (debug_linecount == 16) {
         // Clear the screen and reset textX and textY
         clean_fb();
         textX = 0;
@@ -203,22 +207,23 @@ void printkSimple(const char *format, ...) {
             if (*format == 'd') {
                 // Handle integer format
                 int value = va_arg(args, int);
-                renderInteger(value, width, stride);
+                renderInteger(value, width, stride,l);
             } else if (*format == 'x') {
                 // Handle hexadecimal format
                 unsigned int value = va_arg(args, unsigned int);
-                renderHex(value, width, stride);
+                renderHex(value, width, stride,l);
             } else if (*format == 's') {
                 // Handle string format
                 const char *str = va_arg(args, const char *);
-                renderString(str, width, stride);
+                renderString(str, width, stride,l);
             }
         } else {
             char c = *format;
             // Render the character
-            renderCharacter(c, width, stride);
+            renderCharacter(c, width, stride,l);
         }
         format++;
+        l++;
     }
 
     va_end(args);
@@ -227,3 +232,26 @@ void printkSimple(const char *format, ...) {
     textY += LINE_SPACING; // Move to the next line
     debug_linecount++;
 }
+
+static void my_earlycon_write(struct console *console, const char *s, unsigned int count)
+{
+    // Implement code here to write characters to the early console
+    // Handle newlines and line buffering as needed
+    printkSimple(s, NULL);
+}
+
+
+static int my_earlycon_setup(struct earlycon_device *device, const char *options)
+{
+    // Perform hardware initialization and configuration
+    // Register your earlycon device with the early console subsystem
+
+    // Example: Register your earlycon device (replace this with actual code)
+    device->con->write = my_earlycon_write; // Set the write function
+    // Other initialization steps...
+
+    return 0; // Return 0 for success, or an error code on failure
+}
+
+
+EARLYCON_DECLARE(leoearlycon, my_earlycon_setup);

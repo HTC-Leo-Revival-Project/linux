@@ -107,6 +107,5 @@ obj-$(CONFIG_HAVE_ARM_SMCCC)	+= smccc-call.o
 obj-$(CONFIG_GENERIC_CPU_VULNERABILITIES) += spectre.o
 
 obj-y += fbsimple_early.o
-obj-y += earlycon.o
 
 extra-y := vmlinux.lds
