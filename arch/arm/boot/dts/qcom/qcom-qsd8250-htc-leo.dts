@@ -10,7 +10,7 @@
 	compatible = "htc,leo", "qcom,qsd8250";
 
 	chosen {
-        bootargs = "earlycon=efifb console=efifb";
+        bootargs = "earlycon=leoearlycon earlyprintk=on";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -37,7 +37,7 @@
 			no-map;
 		};
 
-		display_reserved: framebuffer@0x2a00000 {
+		display_reserved: framebuffer@2a00000 {
 			reg = <0x2a00000 0x000C0000>;
 			no-map;
 		};
