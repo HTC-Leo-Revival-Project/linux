@@ -873,7 +873,7 @@ void start_kernel(void)
 	char *command_line;
 	char *after_dashes;
 
-	clean_fb();
+	
 
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();

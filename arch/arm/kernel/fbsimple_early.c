@@ -96,10 +96,20 @@ int textX = 0;
 int textY = 0;
 int debug_linecount = 0;
 void renderCharacter(char c, int width, int stride, int length) {
+
+
+        if (debug_linecount == 16) {
+        // Clear the screen and reset textX and textY
+        clean_fb();
+        textX = 0;
+        textY = 0;
+        debug_linecount = 0;
+    }
     if (c == '\n') {
         // Handle newline character by moving to the next line
-        textX = 0;
-        textY += LINE_SPACING;
+        // textX = 0;
+        // textY += LINE_SPACING;
+        // debug_linecount++;
         return;
     }
 
@@ -108,6 +118,7 @@ void renderCharacter(char c, int width, int stride, int length) {
         // Move to the next line if there's not enough space
         textX = 0;
         textY += LINE_SPACING;
+        debug_linecount++;
     }
     
     
@@ -190,13 +201,7 @@ void printkSimple(const char *format, ...) {
     int stride = 4;
     int l = 0;
 
-    if (debug_linecount == 16) {
-        // Clear the screen and reset textX and textY
-        clean_fb();
-        textX = 0;
-        textY = 0;
-        debug_linecount = 0;
-    }
+
 
     va_list args;
     va_start(args, format);
@@ -245,7 +250,7 @@ static int my_earlycon_setup(struct earlycon_device *device, const char *options
 {
     // Perform hardware initialization and configuration
     // Register your earlycon device with the early console subsystem
-
+    clean_fb();
     // Example: Register your earlycon device (replace this with actual code)
     device->con->write = my_earlycon_write; // Set the write function
     // Other initialization steps...
