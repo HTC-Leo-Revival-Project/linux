@@ -32,7 +32,7 @@
 			no-map;
 		};
 
-        uefi_mem: memory@0x2C000000 {
+        uefi_mem: memory@2C000000 {
 			reg = <0x2C000000 0x00200000>;
 			no-map;
 		};
@@ -40,6 +40,19 @@
 		display_reserved: framebuffer@2a00000 {
 			reg = <0x2a00000 0x000C0000>;
 			no-map;
+		};
+	};
+
+	pstore {
+		compatible = "pstore";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		linux,ramoops {
+			compatible = "ramoops";
+			preserve-mode = "full";
+			size = <0x00200000>; // Set the size to 0x00200000 (2MB)
+			base = <0x2FE00000>; // Set the base address to 0x2FE00000
 		};
 	};
 };
