@@ -121,7 +121,7 @@
  * static arrays.
  */
 
-#define NR_IRQS_LEGACY			16
+#define NR_IRQS_LEGACY			70
 
 #define CPU_VECTOR_LIMIT		(64 * NR_CPUS)
 #define IO_APIC_VECTOR_LIMIT		(32 * MAX_IO_APICS)

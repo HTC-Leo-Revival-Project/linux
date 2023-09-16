@@ -50,6 +50,27 @@ unsigned long irq_err_count;
 
 asmlinkage DEFINE_PER_CPU_READ_MOSTLY(u8 *, irq_stack_ptr);
 
+
+void set_irq_flags(unsigned int irq, unsigned int iflags)
+{
+	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+
+	if (irq >= nr_irqs) {
+		pr_err("Trying to set irq flags for IRQ%d\n", irq);
+		return;
+	}
+
+	if (iflags & IRQF_VALID)
+		clr |= IRQ_NOREQUEST;
+	if (iflags & IRQF_PROBE)
+		clr |= IRQ_NOPROBE;
+	if (!(iflags & IRQF_NOAUTOEN))
+		clr |= IRQ_NOAUTOEN;
+	/* Order is clear bits in "clr" then set bits in "set" */
+	irq_modify_status(irq, clr, set & ~clr);
+}
+EXPORT_SYMBOL_GPL(set_irq_flags);
+
 static void __init init_irq_stacks(void)
 {
 	u8 *stack;
