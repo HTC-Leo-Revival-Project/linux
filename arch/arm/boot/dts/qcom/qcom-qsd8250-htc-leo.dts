@@ -10,7 +10,7 @@
 	compatible = "htc,leo", "qcom,qsd8250";
 
 	chosen {
-        bootargs = "earlycon=leoearlycon earlyprintk=on";
+        bootargs = "earlycon=leoearlycon earlyprintk=on keep_bootcon console=efifb";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -32,8 +32,8 @@
 			no-map;
 		};
 
-        uefi_mem: memory@200000 {
-			reg = <0x2C000000 0x00100000>;
+        uefi_mem: memory@0x2C000000 {
+			reg = <0x2C000000 0x00200000>;
 			no-map;
 		};
 
