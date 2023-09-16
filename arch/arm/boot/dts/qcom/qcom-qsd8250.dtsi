@@ -35,9 +35,8 @@
 		};
 
 		timer@ac100000 {
-			compatible = "qcom,kpss-timer","qcom,msm-timer";
+			compatible = "qcom,qsd8k-timer";
 			reg = <0xac100000 0x100>;
-			interrupts = <1 8 0x301>;
 		};
 
 	};
