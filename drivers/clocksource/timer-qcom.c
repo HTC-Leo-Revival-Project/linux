@@ -245,5 +245,33 @@ static int __init msm_dt_timer_init(struct device_node *np)
 
 	return msm_timer_init(freq, 32, irq, !!percpu_offset);
 }
+
+
+static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
+				u32 sts)
+{
+	void __iomem *base;
+
+	base = ioremap(addr, SZ_256);
+	if (!base) {
+		pr_err("Failed to map timer base\n");
+		return -ENOMEM;
+	}
+	event_base = base + event;
+	source_base = base + source;
+	if (sts)
+		sts_base = base + sts;
+
+	return 0;
+}
+
+void __init qsd8x50_timer_init(void)
+{
+	if (msm_timer_map(0xAC100000, 0x0, 0x10, 0x34))
+		return;
+	msm_timer_init(19200000 / 4, 32, 7, false);
+}
+
 TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
 TIMER_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
+TIMER_OF_DECLARE(qsd8k_timer, "qcom,qsd8k-timer", qsd8x50_timer_init);
