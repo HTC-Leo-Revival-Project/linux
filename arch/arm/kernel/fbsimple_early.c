@@ -98,7 +98,7 @@ int debug_linecount = 0;
 void renderCharacter(char c, int width, int stride, int length) {
 
 
-        if (debug_linecount == 16) {
+        if (debug_linecount == 24) {
         // Clear the screen and reset textX and textY
         clean_fb();
         textX = 0;
