@@ -64,7 +64,7 @@ config ARM_NVIC
 config ARM_VIC
 	bool
 	select IRQ_DOMAIN
-
+	
 config ARM_VIC_NR
 	int
 	default 4 if ARCH_S5PV210
@@ -437,6 +437,13 @@ config QCOM_PDC
 	help
 	  Power Domain Controller driver to manage and configure wakeup
 	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
+
+config ARM_MSM_VIC
+	tristate "QCOM ARM VIC"
+	select IRQ_DOMAIN
+	help
+		ARM vic driver for qcom msm devices
+
 
 config QCOM_MPM
 	tristate "QCOM MPM"
