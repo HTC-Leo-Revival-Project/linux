@@ -1479,7 +1479,7 @@ static void __init devicemaps_init(const struct machine_desc *mdesc)
 	 * any write-allocated cache lines in the vector page are written
 	 * back.  After this point, we can start to touch devices again.
 	 */
-	local_flush_tlb_all();
+	//local_flush_tlb_all();
 	flush_cache_all();
 
 	/* Enable asynchronous aborts */
