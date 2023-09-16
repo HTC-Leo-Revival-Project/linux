@@ -11,6 +11,7 @@
 	#size-cells = <1>;
 	model = "Qualcomm QSD8250";
 	compatible = "qcom,qsd8250";
+	interrupt-parent = <&intc>;
 
 	chosen { };
 
@@ -25,5 +26,21 @@
 		#size-cells = <1>;
 		ranges;
 
+
+		intc: interrupt-controller@AC000000 {
+			compatible = "arm,msm-vic";
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			reg = <0xac000000 0x1000>;
+		};
+
+		timer@ac100000 {
+			compatible = "qcom,kpss-timer","qcom,msm-timer";
+			reg = <0xac100000 0x100>;
+			interrupts = <1 8 0x301>;
+		};
+
 	};
+
+			
 };
