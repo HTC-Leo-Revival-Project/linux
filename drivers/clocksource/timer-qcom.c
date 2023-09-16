@@ -272,6 +272,6 @@ void __init qsd8x50_timer_init(void)
 	msm_timer_init(19200000 / 4, 32, 7, false);
 }
 
-TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
-TIMER_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
+TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", qsd8x50_timer_init);
+TIMER_OF_DECLARE(scss_timer, "qcom,scss-timer", qsd8x50_timer_init);
 TIMER_OF_DECLARE(qsd8k_timer, "qcom,qsd8k-timer", qsd8x50_timer_init);
