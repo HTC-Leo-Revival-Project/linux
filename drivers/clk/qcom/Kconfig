@@ -288,6 +288,14 @@ config MSM_MMCC_8960
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config MSM_PROC_COMM
+	bool "Proc-Comm RPC Interface"
+	depends on ARM
+	help
+	help
+	  Enables a lightweight communications interface to the
+	  baseband processor.
+
 config MSM_GCC_8953
 	tristate "MSM8953 Global Clock Controller"
 	select QCOM_GDSC
