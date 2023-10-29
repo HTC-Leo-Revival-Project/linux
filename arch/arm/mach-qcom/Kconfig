@@ -46,4 +46,7 @@ config ARCH_MDM9615
 	bool "Enable support for MDM9615"
 	select CLKSRC_QCOM
 
+config ARCH_QSD8250
+	bool "Enable support for QSD8250"
+
 endif
