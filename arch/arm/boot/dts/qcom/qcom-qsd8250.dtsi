@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, HTC Leo Revival Project. All rights reserved.
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "Qualcomm QSD8250";
+	compatible = "qcom,qsd8250";
+
+	chosen { };
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
+	};
+
+	soc: soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+	};
+};
