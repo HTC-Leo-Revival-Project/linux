@@ -11,7 +11,7 @@
 	compatible = "htc,leo", "qcom,qsd8250";
 
 	chosen {
-        bootargs = "console=efifb video=efifb";
+        bootargs = "video=efifb";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
