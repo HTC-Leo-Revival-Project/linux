@@ -32,5 +32,10 @@
 			#interrupt-cells = <3>;
 			reg = <0xac000000 0x1000>;
 		};
+
+		timer@ac100000 {
+			compatible = "qcom,qsd8k-timer";
+			reg = <0xac100000 0x100>;
+		};
 	};
 };
