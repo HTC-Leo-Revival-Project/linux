@@ -38,6 +38,20 @@
 		};
 	};
 
+		clocks {
+		xo_board: xo_board {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <19200000>;
+		};
+
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -54,6 +68,6 @@
 		timer@ac100000 {
 			compatible = "qcom,qsd8k-timer";
 			reg = <0xac100000 0x100>;
-		};
+    };
 	};
 };
