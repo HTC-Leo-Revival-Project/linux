@@ -20,6 +20,7 @@
 #include <linux/ptrace.h>
 #include <linux/timer.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
@@ -43,7 +44,7 @@ module_param_named(debug_mask, msm_irq_debug_mask, int,
 #define VIC_INT_TO_REG_ADDR(base, irq) (base + (irq / 32) * 4)
 #define VIC_INT_TO_REG_INDEX(irq) ((irq >> 5) & 3)
 
-#define MSM_VIC_BASE          IOMEM(0xE0000000)
+#define MSM_VIC_BASE          IOMEM(0xAC000000)
 #define VIC_INT_SELECT0     VIC_REG(0x0000)  /* 1: FIQ, 0: IRQ */
 #define VIC_INT_SELECT1     VIC_REG(0x0004)  /* 1: FIQ, 0: IRQ */
 #define VIC_INT_SELECT2     VIC_REG(0x0008)  /* 1: FIQ, 0: IRQ */
@@ -119,11 +120,8 @@ module_param_named(debug_mask, msm_irq_debug_mask, int,
 #define VIC_VECTPRIORITY(n) VIC_REG(0x0200+((n) * 4))
 #define VIC_VECTADDR(n)     VIC_REG(0x0400+((n) * 4))
 
-#if defined(CONFIG_ARCH_MSM7X30)
-#define VIC_NUM_REGS	    4
-#else
+
 #define VIC_NUM_REGS	    2
-#endif
 
 #if VIC_NUM_REGS == 2
 #define DPRINT_REGS(base_reg, format, ...)	      			\
@@ -225,9 +223,7 @@ EXPORT_SYMBOL_GPL(set_irq_flags);
 
 static inline void msm_irq_write_all_regs(void __iomem *base, unsigned int val)
 {
-	int i;
-
-	for (i = 0; i < VIC_NUM_REGS; i++)
+	for (int i = 0; i < VIC_NUM_REGS; i++)
 		writel(val, base + (i * 4));
 }
 
@@ -342,22 +338,31 @@ static struct irq_chip msm_irq_chip = {
 	.irq_set_type  = msm_irq_set_type,
 };
 
-void __init msm_init_irq(void)
+static int __init msm_init_irq(struct device_node *intc, struct device_node *parent)
 {
+
+	printk(KERN_INFO "MSM VIC Driver loading\n");
+
 	unsigned n;
 
 	/* select level interrupts */
+	printk(KERN_INFO "1 \n");
 	msm_irq_write_all_regs(VIC_INT_TYPE0, 0);
 
+printk(KERN_INFO "2\n");
 	/* select highlevel interrupts */
 	msm_irq_write_all_regs(VIC_INT_POLARITY0, 0);
 
+printk(KERN_INFO "3\n");
 	/* select IRQ for all INTs */
 	msm_irq_write_all_regs(VIC_INT_SELECT0, 0);
 
+printk(KERN_INFO "4\n");
 	/* disable all INTs */
+
 	msm_irq_write_all_regs(VIC_INT_EN0, 0);
 
+printk(KERN_INFO "5\n");
 	/* don't use vic */
 	writel(0, VIC_CONFIG);
 
@@ -368,7 +373,7 @@ void __init msm_init_irq(void)
 		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);
 		set_irq_flags(n, IRQF_VALID);
 	}
+	return 0;
 }
 
-EXPORT_SYMBOL_GPL(msm_init_irq); 
-//IRQCHIP_DECLARE(arm_msm_vic, "arm,msm-vic", msm_init_irq);
+IRQCHIP_DECLARE(arm_msm_vic, "arm,msm-vic", msm_init_irq);
