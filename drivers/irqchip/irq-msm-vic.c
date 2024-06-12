@@ -155,7 +155,7 @@ static struct {
 static uint32_t msm_irq_idle_disable[VIC_NUM_REGS];
 
 #define SMSM_FAKE_IRQ (0xff)
-static uint8_t msm_irq_to_smsm[70] = {
+static uint8_t msm_irq_to_smsm[NR_IRQS] = {
 	[INT_MDDI_EXT] = 1,
 	[INT_MDDI_PRI] = 2,
 	[INT_MDDI_CLIENT] = 3,
@@ -206,7 +206,7 @@ void set_irq_flags(unsigned int irq, unsigned int iflags)
 {
 	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 
-	if (irq >= nr_irqs) {
+	if (irq >= NR_IRQS) {
 		pr_err("Trying to set irq flags for IRQ%d\n", irq);
 		return;
 	}
