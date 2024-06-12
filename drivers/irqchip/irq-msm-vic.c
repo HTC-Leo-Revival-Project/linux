@@ -40,12 +40,12 @@ static int msm_irq_debug_mask;
 module_param_named(debug_mask, msm_irq_debug_mask, int,
 		   S_IRUGO | S_IWUSR | S_IWGRP);
 
-#define VIC_INT_TO_REG_ADDR(base, irq) (base + (irq / 32) * 4)
-#define VIC_INT_TO_REG_INDEX(irq) ((irq >> 5) & 3)
+#define VIC_INT_TO_REG_ADDR(base, irq) (base + ((irq & 32) ? 4 : 0))
+#define VIC_INT_TO_REG_INDEX(irq) ((irq >> 5) & 1)
 
 //#define MSM_VIC_BASE          IOMEM(0xAC000000)
-//void __iomem	*base = NULL;
-static void __iomem *vic_base;
+void __iomem	*vic_base = NULL;
+//static void __iomem *vic_base;
 
 #define VIC_INT_SELECT0     0x0000  /* 1: FIQ, 0: IRQ */
 #define VIC_INT_SELECT1     0x0004  /* 1: FIQ, 0: IRQ */
@@ -206,7 +206,7 @@ void set_irq_flags(unsigned int irq, unsigned int iflags)
 {
 	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 
-	if (irq >= NR_IRQS) {
+	if (irq >= NR_MSM_IRQS) {
 		pr_err("Trying to set irq flags for IRQ%d\n", irq);
 		return;
 	}
