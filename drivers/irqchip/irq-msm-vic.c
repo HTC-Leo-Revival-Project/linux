@@ -44,7 +44,8 @@ module_param_named(debug_mask, msm_irq_debug_mask, int,
 #define VIC_INT_TO_REG_ADDR(base, irq) (base + (irq / 32) * 4)
 #define VIC_INT_TO_REG_INDEX(irq) ((irq >> 5) & 3)
 
-#define MSM_VIC_BASE          IOMEM(0xAC000000)
+//#define MSM_VIC_BASE          IOMEM(0xAC000000)
+void* MSM_VIC_BASE = NULL;
 #define VIC_INT_SELECT0     VIC_REG(0x0000)  /* 1: FIQ, 0: IRQ */
 #define VIC_INT_SELECT1     VIC_REG(0x0004)  /* 1: FIQ, 0: IRQ */
 #define VIC_INT_SELECT2     VIC_REG(0x0008)  /* 1: FIQ, 0: IRQ */
@@ -342,9 +343,11 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 {
 
 	printk(KERN_INFO "MSM VIC Driver loading\n");
-
+	MSM_VIC_BASE = ioremap(0xAC000000,0x00100000);
 	unsigned n;
-
+	if (!MSM_VIC_BASE){
+		return -ENODEV;
+	}
 	/* select level interrupts */
 	printk(KERN_INFO "1 \n");
 	msm_irq_write_all_regs(VIC_INT_TYPE0, 0);
