@@ -44,7 +44,7 @@ module_param_named(debug_mask, msm_irq_debug_mask, int,
 #define VIC_INT_TO_REG_INDEX(irq) ((irq >> 5) & 1)
 
 //#define MSM_VIC_BASE          IOMEM(0xAC000000)
-void __iomem	*vic_base = NULL;
+void __iomem	*vic_base = 0xac000000;
 //static void __iomem *vic_base;
 
 #define VIC_INT_SELECT0     0x0000  /* 1: FIQ, 0: IRQ */
@@ -345,32 +345,27 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	unsigned n;
 
 	printk(KERN_INFO "MSM VIC Driver loading\n");
-	printk(KERN_INFO "MSM_VIC: intc base before mapping %p.\n", vic_base);
+	printk(KERN_INFO "MSM_VIC: intc base before mapping %x.\n", (int)vic_base);
 
-	vic_base = ioremap(0xac000000,0x00100000);
-	if (!vic_base){
+	vic_base = ioremap(vic_base,0x00100000);
+	if (!vic_base || vic_base == 0xac000000){
 		return -ENODEV;
 	}
-	printk(KERN_INFO "MSM_VIC: intc base address successfully mapped to %p.\n", vic_base);
+	printk(KERN_INFO "MSM_VIC: intc base address successfully mapped to %x.\n", (int)vic_base);
 
 	/* select level interrupts */
-	printk(KERN_INFO "1 \n");
 	msm_irq_write_all_regs(vic_base + VIC_INT_TYPE0, 0);
 
-	printk(KERN_INFO "2\n");
 	/* select highlevel interrupts */
 	msm_irq_write_all_regs(vic_base + VIC_INT_POLARITY0, 0);
 
-	printk(KERN_INFO "3\n");
 	/* select IRQ for all INTs */
 	msm_irq_write_all_regs(vic_base + VIC_INT_SELECT0, 0);
 
-	printk(KERN_INFO "4\n");
 	/* disable all INTs */
 
 	msm_irq_write_all_regs(vic_base + VIC_INT_EN0, 0);
 
-	printk(KERN_INFO "5\n");
 	/* don't use vic */
 	writel(0, vic_base + VIC_CONFIG);
 
