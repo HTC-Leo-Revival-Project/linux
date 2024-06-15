@@ -34,6 +34,11 @@
 static void __iomem *event_base;
 static void __iomem *sts_base;
 
+enum qcom_timer_type {
+	GENERIC,		/* generic */
+	QSD8K,			/* qsd8250 */
+};
+
 static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
@@ -194,7 +199,7 @@ err:
 	return res;
 }
 
-static int __init msm_dt_timer_init(struct device_node *np)
+static int __init dt_timer_init(struct device_node *np, enum qcom_timer_type type)
 {
 	u32 freq;
 	int irq, ret;
@@ -207,6 +212,14 @@ static int __init msm_dt_timer_init(struct device_node *np)
 	if (!base) {
 		pr_err("Failed to map event base\n");
 		return -ENXIO;
+	}
+
+	if(type == QSD8K) {
+		if (of_property_read_u32(np, "clock-frequency", &freq)) {
+			pr_err("Unknown frequency\n");
+			return -EINVAL;
+		}
+		goto end;
 	}
 
 	/* We use GPT0 for the clockevent */
@@ -236,42 +249,42 @@ static int __init msm_dt_timer_init(struct device_node *np)
 		pr_err("Unknown frequency\n");
 		return -EINVAL;
 	}
+end:
+	if(type == GENERIC) {
+		event_base = base + 0x4;
+		sts_base = base + 0x88;
+		source_base = cpu0_base + 0x24;
+		freq /= 4;
+		writel_relaxed(DGT_CLK_CTL_DIV_4, source_base + DGT_CLK_CTL);
+	}
+	else if(type == QSD8K)
+	{
+		/*
+		event = 0x0
+		sts = 0x34
+		source = 0x10
+		*/
+		event_base = base;
+		sts_base = base + 0x34;
+		source_base = base + 0x10;//cpu0_base + 0x24;
+		freq /= 4;
 
-	event_base = base + 0x4;
-	sts_base = base + 0x88;
-	source_base = cpu0_base + 0x24;
-	freq /= 4;
-	writel_relaxed(DGT_CLK_CTL_DIV_4, source_base + DGT_CLK_CTL);
+		return msm_timer_init(freq, 32, 7, false);
+	}
 
 	return msm_timer_init(freq, 32, irq, !!percpu_offset);
 }
 
-
-static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
-				u32 sts)
+static int __init msm_dt_timer_init(struct device_node *np)
 {
-	void __iomem *base;
-
-	base = ioremap(addr, SZ_256);
-	if (!base) {
-		pr_err("Failed to map timer base\n");
-		return -ENOMEM;
-	}
-	event_base = base + event;
-	source_base = base + source;
-	if (sts)
-		sts_base = base + sts;
-
-	return 0;
+	return dt_timer_init(np, GENERIC);
 }
 
-void __init qsd8x50_timer_init(void)
+static int __init qsd8x50_dt_timer_init(struct device_node *np)
 {
-	if (msm_timer_map(0xAC100000, 0x0, 0x10, 0x34))
-		return;
-	msm_timer_init(19200000 / 4, 32, 7, false);
+	return dt_timer_init(np, QSD8K);
 }
 
 TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
 TIMER_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
-TIMER_OF_DECLARE(qsd8k_timer, "qcom,qsd8k-timer", qsd8x50_timer_init);
+TIMER_OF_DECLARE(qsd8k_timer, "qcom,qsd8k-timer", qsd8x50_dt_timer_init);
