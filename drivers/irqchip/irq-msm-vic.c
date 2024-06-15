@@ -22,7 +22,9 @@
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/io.h>
-
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/cacheflush.h>
 #include <asm/exception.h>
 #include <asm/irq.h>
@@ -46,7 +48,7 @@ module_param_named(debug_mask, msm_irq_debug_mask, int,
 #define VIC_INT_TO_REG_INDEX(irq) ((irq >> 5) & 1)
 
 //#define MSM_VIC_BASE          IOMEM(0xAC000000)
-void __iomem	*vic_base = 0xac000000;
+void __iomem	*vic_base = NULL;
 //static void __iomem *vic_base;
 
 #define VIC_INT_SELECT0     0x0000  /* 1: FIQ, 0: IRQ */
@@ -376,10 +378,8 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	unsigned n;
 
 	printk(KERN_INFO "MSM VIC Driver loading\n");
-	printk(KERN_INFO "MSM_VIC: intc base before mapping %x.\n", (int)vic_base);
-
-	vic_base = ioremap(vic_base,0x00100000);
-	if (!vic_base || vic_base == 0xac000000){
+	vic_base = of_iomap(intc, 0);
+	if (!vic_base){
 		return -ENODEV;
 	}
 	printk(KERN_INFO "MSM_VIC: intc base address successfully mapped to %x.\n", (int)vic_base);
