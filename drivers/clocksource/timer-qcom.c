@@ -252,7 +252,7 @@ static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
 {
 	void __iomem *base;
 
-	base = ioremap(addr, SZ_256);
+	base = addr;
 	if (!base) {
 		pr_err("Failed to map timer base\n");
 		return -ENOMEM;
@@ -265,11 +265,19 @@ static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
 	return 0;
 }
 
-void __init qsd8x50_timer_init(void)
+static int __init qsd8x50_timer_init(struct device_node *timer, struct device_node *parent)
 {
-	if (msm_timer_map(0xAC100000, 0x0, 0x10, 0x34))
-		return;
+	void __iomem *timer_base;
+
+	timer_base = of_iomap(timer, 0);
+	if (!timer_base){
+		return -ENODEV;
+	}
+	if (msm_timer_map(timer_base, 0x0, 0x10, 0x34)){
+		return -ENODEV;
+		}
 	msm_timer_init(19200000 / 4, 32, 7, false);
+	return 0;
 }
 
 TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
