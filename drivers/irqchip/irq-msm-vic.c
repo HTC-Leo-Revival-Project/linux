@@ -24,6 +24,8 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
+#include <asm/exception.h>
+#include <asm/irq.h>
 
 #include "smd-private.h"
 
@@ -324,10 +326,39 @@ static int msm_irq_set_type(struct irq_data *d, unsigned int flow_type)
 		//__irq_set_handler_locked(d->irq, handle_level_irq);
 		//irq_set_handler_locked(d->irq, handle_edge_irq);//bug??
 		irq_set_handler_locked(d, handle_edge_irq);
+		//irq_set_handler_locked(d, handle_level_irq);
 	}
 	writel(type, treg);
 	msm_irq_shadow_reg[index].int_type = type;
 	return 0;
+}
+
+static inline void msm_vic_handle_irq(void __iomem *base_addr, struct pt_regs
+		*regs)
+{
+	u32 irqnr;
+	do {
+		/* VIC_IRQ_VEC_RD has irq# or old irq# if the irq has been handled
+		 * VIC_IRQ_VEC_PEND_RD has irq# or -1 if none pending *but* if you 
+		 * just read VIC_IRQ_VEC_PEND_RD you never get the first irq for some reason
+		 */
+		irqnr = readl_relaxed(base_addr + VIC_IRQ_VEC_RD);
+		irqnr = readl_relaxed(base_addr + VIC_IRQ_VEC_PEND_RD);
+		if (irqnr == -1)
+			break;
+		handle_IRQ(irqnr, regs);
+	} while (1);
+}
+
+/* enable imprecise aborts */
+#define local_cpsie_enable()  __asm__ __volatile__("cpsie a    @ enable")
+
+//asmlinkage __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
+//static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
+{
+	local_cpsie_enable();
+	msm_vic_handle_irq(vic_base, regs);
 }
 
 static struct irq_chip msm_irq_chip = {
@@ -381,6 +412,10 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);
 		set_irq_flags(n, IRQF_VALID);
 	}
+
+	/* Ready to receive interrupts */
+	set_handle_irq(vic_handle_irq);
+
 	return 0;
 }
 
