@@ -42,5 +42,13 @@
 			reg = <0x2a00000 0x000c0000>;
 			no-map;
 		};
+
+		ramoops@3e000000 {
+			compatible = "ramoops";
+			reg = <0x3e000000 0x100000>;
+			record-size = <0x00020000>;
+			console-size = <0x00020000>;
+			ftrace-size = <0x00020000>;
+		};
 	};
 };
