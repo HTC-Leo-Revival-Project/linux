@@ -17,6 +17,7 @@
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
 
+
 #include <asm/delay.h>
 
 #define TIMER_MATCH_VAL			0x0000
@@ -251,6 +252,7 @@ static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
 				u32 sts)
 {
 	void __iomem *base;
+	
 
 	base = addr;
 	if (!base) {
@@ -268,15 +270,26 @@ static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
 static int __init qsd8x50_timer_init(struct device_node *timer, struct device_node *parent)
 {
 	void __iomem *timer_base;
+	u32 clockfrequency = ~0;
+
 
 	timer_base = of_iomap(timer, 0);
 	if (!timer_base){
 		return -ENODEV;
 	}
+
+	of_property_read_u32(timer, "clock-frequency", &clockfrequency);
+	
+	if (clockfrequency = ~0){
+		clockfrequency = 19200000;
+		printk(KERN_ERR, "Clock freq could not be read using fallback value \n");
+	}
+
 	if (msm_timer_map(timer_base, 0x0, 0x10, 0x34)){
 		return -ENODEV;
-		}
-	msm_timer_init(19200000 / 4, 32, 7, false);
+	}
+
+	msm_timer_init(clockfrequency / 4, 32, 7, false);
 	return 0;
 }
 
