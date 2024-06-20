@@ -22,8 +22,9 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 
-#include <mach/msm_gpiomux.h>
+#include "msm_gpiomux.h"
 
 /* see 80-VA736-2 Rev C pp 695-751
 **
@@ -274,6 +275,12 @@
 #define MSM7X30_GPIO_INT_STATUS_6	MSM_GPIO1_REG(0xE0)
 #define MSM7X30_GPIO_INT_STATUS_7	MSM_GPIO1_REG(0x234)
 
+/* j0sh1x: mach-msm doesnt exist anymore so define this here where it is used*/
+#define NR_GPIO_IRQS 165
+#define NR_MSM_IRQS 64
+#define MSM_GPIO_TO_INT(n) (NR_MSM_IRQS + (n))
+#define IRQF_VALID	(1 << 0)
+
 #define FIRST_GPIO_IRQ MSM_GPIO_TO_INT(0)
 
 #define MSM_GPIO_BANK(soc, bank, first, last)				\
@@ -446,7 +453,8 @@ static int msm_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return MSM_GPIO_TO_INT(chip->base + offset);
 }
 
-#ifdef CONFIG_MSM_GPIOMUX
+/* j0sh1x: we want gpiomuxing always*/
+
 static int msm_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	return msm_gpiomux_get(chip->base + offset);
@@ -456,10 +464,6 @@ static void msm_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	msm_gpiomux_put(chip->base + offset);
 }
-#else
-#define msm_gpio_request NULL
-#define msm_gpio_free NULL
-#endif
 
 static struct msm_gpio_chip *msm_gpio_chips;
 static int msm_gpio_count;
@@ -578,10 +582,10 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	val = msm_gpio_readl(msm_chip, MSM_GPIO_INT_EDGE);
 	if (flow_type & IRQ_TYPE_EDGE_BOTH) {
 		msm_gpio_writel(msm_chip, val | mask, MSM_GPIO_INT_EDGE);
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d->irq, handle_edge_irq);
 	} else {
 		msm_gpio_writel(msm_chip, val & ~mask, MSM_GPIO_INT_EDGE);
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d->irq, handle_level_irq);
 	}
 	if ((flow_type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
 		msm_chip->both_edge_detect |= mask;
@@ -670,7 +674,9 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 		irq_set_chip_data(i, &msm_gpio_chips[j]);
 		irq_set_chip_and_handler(i, &msm_gpio_irq_chip,
 					 handle_edge_irq);
-		set_irq_flags(i, IRQF_VALID);
+					 /* j0sh1x: dis bad for now*/
+					 /* ToDo: FIX ME*/
+		//set_irq_flags(i, IRQF_VALID);
 	}
 
 	for (i = 0; i < msm_gpio_count; i++) {
@@ -682,9 +688,12 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 		msm_gpio_writel(&msm_gpio_chips[i], 0, MSM_GPIO_INT_EN);
 		gpiochip_add(&msm_gpio_chips[i].chip);
 	}
-
-	irq_set_chained_handler(irq1, msm_gpio_irq_handler);
-	irq_set_chained_handler(irq2, msm_gpio_irq_handler);
+	/* j0sh1x: this will probably cause a NULL pointer cause the 3rd arg is NULL
+		ToDo: fix me
+		update: dis bad for now fuck it
+	*/
+	// irq_set_chained_handler_and_data(irq1, msm_gpio_irq_handler, NULL);
+	// irq_set_chained_handler_and_data(irq2, msm_gpio_irq_handler, NULL);
 	irq_set_irq_wake(irq1, 1);
 	irq_set_irq_wake(irq2, 1);
 	return 0;
