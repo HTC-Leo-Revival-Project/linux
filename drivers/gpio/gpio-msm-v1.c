@@ -337,6 +337,10 @@ struct msm_gpio_initdata {
 	int count;
 };
 
+enum msm_gpio_id {
+	QSD8k_GPIO,
+};
+
 static void msm_gpio_writel(struct msm_gpio_chip *chip, u32 val,
 			    enum msm_gpio_reg reg)
 {
@@ -644,7 +648,7 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *base1, __iomem *base2;
 
-	data = (struct msm_gpio_initdata *)dev_id->driver_data;
+	data = (struct msm_gpio_initdata *)msm_gpio_chips_qsd8x50;
 	msm_gpio_chips = data->chips;
 	msm_gpio_count = data->count;
 
@@ -699,20 +703,18 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id gpio_msm_v1_device_ids[] = {
-	{ "gpio-msm-7201", (unsigned long)&msm_gpio_7x01_init },
-	{ "gpio-msm-7x30", (unsigned long)&msm_gpio_7x30_init },
-	{ "gpio-msm-8x50", (unsigned long)&msm_gpio_8x50_init },
-	{ }
+static const struct of_device_id msm_gpio_dt_ids[] = {
+	{ .compatible = "msm,qsd8k-gpio", .data = (void *) QSD8k_GPIO, },
+	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(platform, gpio_msm_v1_device_ids);
 
 static struct platform_driver gpio_msm_v1_driver = {
-	.driver = {
-		.name = "gpio-msm-v1",
+	.driver		= {
+		.name	= "gpio-msm-v1",
+		.of_match_table = msm_gpio_dt_ids,
+		.suppress_bind_attrs = true,
 	},
-	.probe = gpio_msm_v1_probe,
-	.id_table = gpio_msm_v1_device_ids,
+	.probe		= gpio_msm_v1_probe,
 };
 
 static int __init gpio_msm_v1_init(void)
