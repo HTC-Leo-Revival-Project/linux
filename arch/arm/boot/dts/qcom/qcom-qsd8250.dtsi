@@ -79,5 +79,9 @@
 			interrupts = <7>;
 			clock-frequency = <19200000>;
 		};
+
+		gpio0: gpio@0 {
+			compatible = "msm,qsd8k-gpio";
+		};
 	};
 };
