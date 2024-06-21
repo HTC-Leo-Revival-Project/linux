@@ -23,7 +23,9 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
-
+#include <linux/of.h>
+#include <linux/of_irq.h> 
+#include <linux/of_address.h> 
 #include "msm_gpiomux.h"
 
 /* see 80-VA736-2 Rev C pp 695-751
@@ -641,35 +643,39 @@ static struct irq_chip msm_gpio_irq_chip = {
 
 static int gpio_msm_v1_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
+
 	int i, j = 0;
-	const struct platform_device_id *dev_id = platform_get_device_id(pdev);
 	struct msm_gpio_initdata *data;
 	int irq1, irq2;
 	struct resource *res;
 	void __iomem *base1, __iomem *base2;
 
-	data = (struct msm_gpio_initdata *)msm_gpio_chips_qsd8x50;
+	data = &msm_gpio_8x50_init;
 	msm_gpio_chips = data->chips;
 	msm_gpio_count = data->count;
-
-	irq1 = platform_get_irq(pdev, 0);
+/* j0sh1x: this seems to parse the device description from mach-msm board files
+	ToDo:	try to replicate what is there in dts*/
+	printk("MSM_GPIO_V1 is probing ! \n");
+	if (!np || !data)
+        return -ENXIO;
+	irq1 = irq_of_parse_and_map(np, 0);
 	if (irq1 < 0)
-		return irq1;
-
-	irq2 = platform_get_irq(pdev, 1);
+		return -ENXIO;
+	irq2 = irq_of_parse_and_map(np, 1);
 	if (irq2 < 0)
-		return irq2;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base1 = devm_ioremap_resource(&pdev->dev, res);
+		return -ENXIO;
+		// j0sh1x: is res even used ?
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0); //ToDo: adapt to dt parsing
+	base1 = of_iomap(np, 0);
 	if (IS_ERR(base1))
-		return PTR_ERR(base1);
+		return -ENXIO;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	base2 = devm_ioremap_resource(&pdev->dev, res);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1); //ToDo: adapt to dt parsing
+	base2 = of_iomap(np, 1);
 	if (IS_ERR(base2))
-		return PTR_ERR(base2);
-
+		return -ENXIO;
+/*							*/
 	for (i = FIRST_GPIO_IRQ; i < FIRST_GPIO_IRQ + NR_GPIO_IRQS; i++) {
 		if (i - FIRST_GPIO_IRQ >=
 			msm_gpio_chips[j].chip.base +
@@ -682,7 +688,8 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 					 /* ToDo: FIX ME*/
 		//set_irq_flags(i, IRQF_VALID);
 	}
-
+	/* error is somewhere here*/
+	/* Unable to handle kernel NULL pointer dereference at virtual address 00000060 when write */
 	for (i = 0; i < msm_gpio_count; i++) {
 		if (i == 1)
 			msm_gpio_chips[i].base = base2;
