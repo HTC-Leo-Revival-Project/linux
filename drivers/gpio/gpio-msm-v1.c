@@ -341,6 +341,8 @@ struct msm_gpio_initdata {
 
 enum msm_gpio_id {
 	QSD8k_GPIO,
+	MSM7X30_GPIO,
+	MSM7X00_GPIO,
 };
 
 static void msm_gpio_writel(struct msm_gpio_chip *chip, u32 val,
@@ -582,16 +584,16 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	unsigned long irq_flags;
 	struct msm_gpio_chip *msm_chip = irq_data_get_irq_chip_data(d);
 	unsigned offset = d->irq - gpio_to_irq(msm_chip->chip.base);
-	unsigned val, mask = BIT(offset);
+	unsigned val, mask = BIT(offset); 
 
 	spin_lock_irqsave(&msm_chip->lock, irq_flags);
 	val = msm_gpio_readl(msm_chip, MSM_GPIO_INT_EDGE);
 	if (flow_type & IRQ_TYPE_EDGE_BOTH) {
 		msm_gpio_writel(msm_chip, val | mask, MSM_GPIO_INT_EDGE);
-		irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked((struct irq_data*)d->irq, handle_edge_irq);
 	} else {
 		msm_gpio_writel(msm_chip, val & ~mask, MSM_GPIO_INT_EDGE);
-		irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked((struct irq_data*)d->irq, handle_level_irq);
 	}
 	if ((flow_type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
 		msm_chip->both_edge_detect |= mask;
@@ -650,8 +652,19 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 	int irq1, irq2;
 	struct resource *res;
 	void __iomem *base1, __iomem *base2;
+	enum msm_gpio_id id = QSD8k_GPIO;
 
-	data = &msm_gpio_8x50_init;
+	switch(id){
+		case QSD8k_GPIO:
+			data = &msm_gpio_8x50_init;
+			break;
+		case MSM7X00_GPIO:
+			data = &msm_gpio_7x01_init;
+			break;
+		case MSM7X30_GPIO:
+			data = &msm_gpio_7x30_init;
+	}
+	
 	msm_gpio_chips = data->chips;
 	msm_gpio_count = data->count;
 /* j0sh1x: this seems to parse the device description from mach-msm board files
