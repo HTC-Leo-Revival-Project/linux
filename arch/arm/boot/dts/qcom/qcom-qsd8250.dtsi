@@ -80,14 +80,15 @@
 			clock-frequency = <19200000>;
 		};
 
-				gpio1: gpio@0xA9000000 {
-					compatible = "msm,qsd8k-gpio";
-					reg = <0xA9000000 0x00100000>;
-					interrupts = <73 74>;
-					gpio-controller;
-					#gpio-cells = <2>;
-					interrupt-controller;
-					#interrupt-cells = <2>;
-				};
+		gpio1: gpio@0xA9000000 {
+			compatible = "msm,qsd8k-gpio";
+			reg = <0xA9000000 0x00100000>,
+	      		  <0xA9100000 0x00100000>;
+			interrupts = <73 74>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 };
