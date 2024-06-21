@@ -611,7 +611,7 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
-static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void msm_gpio_irq_handler(struct irq_desc *desc)
 {
 	int i, j, mask;
 	unsigned val;
@@ -697,9 +697,7 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 		irq_set_chip_data(i, &msm_gpio_chips[j]);
 		irq_set_chip_and_handler(i, &msm_gpio_irq_chip,
 					 handle_edge_irq);
-					 /* j0sh1x: dis bad for now*/
-					 /* ToDo: FIX ME*/
-		//set_irq_flags(i, IRQF_VALID);
+		irq_set_status_flags(i, IRQF_VALID);
 	}
 	/* error is somewhere here*/
 	/* Unable to handle kernel NULL pointer dereference at virtual address 00000060 when write */
@@ -712,12 +710,9 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 		msm_gpio_writel(&msm_gpio_chips[i], 0, MSM_GPIO_INT_EN);
 		gpiochip_add(&msm_gpio_chips[i].chip);
 	}
-	/* j0sh1x: this will probably cause a NULL pointer cause the 3rd arg is NULL
-		ToDo: fix me
-		update: dis bad for now fuck it
-	*/
-	// irq_set_chained_handler_and_data(irq1, msm_gpio_irq_handler, NULL);
-	// irq_set_chained_handler_and_data(irq2, msm_gpio_irq_handler, NULL);
+
+	irq_set_chained_handler(irq1, msm_gpio_irq_handler);
+	irq_set_chained_handler(irq2, msm_gpio_irq_handler);
 	irq_set_irq_wake(irq1, 1);
 	irq_set_irq_wake(irq2, 1);
 	return 0;
