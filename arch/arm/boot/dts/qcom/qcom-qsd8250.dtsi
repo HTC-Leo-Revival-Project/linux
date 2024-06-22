@@ -25,6 +25,12 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
+		}; 
+
+		uart1_clk: uart1_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <1843200>;
 		};
 
 		sleep_clk: sleep_clk {
@@ -68,8 +74,8 @@
 		blsp1_uart1: serial@a9a00000 {
 			compatible = "qcom,msm-uart";
 			reg = <0xa9a00000 0x1000>;
-			interrupts = <44>;
-			clocks = <&xo_board>;
+			interrupts = <64>;
+			clocks = <&uart1_clk>;
 			clock-names = "core";
 		};
 
