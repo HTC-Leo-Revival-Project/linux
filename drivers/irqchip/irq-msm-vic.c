@@ -31,100 +31,39 @@
 #include <asm/exception.h>
 #include <asm/irq.h>
 
-#include "irqs-qsd8k.h"
+//#include "irqs-qsd8k.h"
 
-enum {
-	IRQ_DEBUG_SLEEP_INT_TRIGGER = 1U << 0,
-	IRQ_DEBUG_SLEEP_INT = 1U << 1,
-	IRQ_DEBUG_SLEEP_ABORT = 1U << 2,
-	IRQ_DEBUG_SLEEP = 1U << 3,
-	IRQ_DEBUG_SLEEP_REQUEST = 1U << 4,
-};
-static int msm_irq_debug_mask;
-module_param_named(debug_mask, msm_irq_debug_mask, int,
-		   S_IRUGO | S_IWUSR | S_IWGRP);
+#define NR_GPIO_IRQS 165
+#define NR_MSM_IRQS 64
+#define NR_BOARD_IRQS 64
+
+#define NR_IRQS (NR_MSM_IRQS + NR_GPIO_IRQS + NR_BOARD_IRQS)
 
 void __iomem	*vic_base = NULL;
 
 #define VIC_INT_TO_REG_ADDR(base, irq) (base + ((irq & 32) ? 4 : 0))
-#define VIC_INT_TO_REG_INDEX(irq) ((irq >> 5) & 1)
 
-#define VIC_INT_SELECT0     0x0000  /* 1: FIQ, 0: IRQ */
-#define VIC_INT_SELECT1     0x0004  /* 1: FIQ, 0: IRQ */
-#define VIC_INT_SELECT2     0x0008  /* 1: FIQ, 0: IRQ */
-#define VIC_INT_SELECT3     0x000C  /* 1: FIQ, 0: IRQ */
-#define VIC_INT_EN0         0x0010
-#define VIC_INT_EN1         0x0014
-#define VIC_INT_EN2         0x0018
-#define VIC_INT_EN3         0x001C
-#define VIC_INT_ENCLEAR0    0x0020
-#define VIC_INT_ENCLEAR1    0x0024
-#define VIC_INT_ENCLEAR2    0x0028
-#define VIC_INT_ENCLEAR3    0x002C
-#define VIC_INT_ENSET0      0x0030
-#define VIC_INT_ENSET1      0x0034
-#define VIC_INT_ENSET2      0x0038
-#define VIC_INT_ENSET3      0x003C
-#define VIC_INT_TYPE0       0x0040  /* 1: EDGE, 0: LEVEL  */
-#define VIC_INT_TYPE1       0x0044  /* 1: EDGE, 0: LEVEL  */
-#define VIC_INT_TYPE2       0x0048  /* 1: EDGE, 0: LEVEL  */
-#define VIC_INT_TYPE3       0x004C  /* 1: EDGE, 0: LEVEL  */
-#define VIC_INT_POLARITY0   0x0050  /* 1: NEG, 0: POS */
-#define VIC_INT_POLARITY1   0x0054  /* 1: NEG, 0: POS */
-#define VIC_INT_POLARITY2   0x0058  /* 1: NEG, 0: POS */
-#define VIC_INT_POLARITY3   0x005C  /* 1: NEG, 0: POS */
-#define VIC_NO_PEND_VAL     0x0060
-
-
-#define VIC_NO_PEND_VAL_FIQ 0x0064
+/* These definitions correspond to the "new mapping" of the
+ * register set that interleaves "high" and "low". The offsets
+ * below are for the "low" register, add 4 to get to the high one
+ */
+#define VIC_INT_SELECT      0x0000  /* 1: FIQ, 0: IRQ */
+#define VIC_INT_EN          0x0010
+#define VIC_INT_ENCLEAR     0x0020
+#define VIC_INT_ENSET       0x0030
+#define VIC_INT_TYPE        0x0040  /* 1: EDGE, 0: LEVEL  */
+#define VIC_INT_POLARITY    0x0050  /* 1: NEG, 0: POS */
 #define VIC_INT_MASTEREN    0x0068  /* 1: IRQ, 2: FIQ     */
 #define VIC_CONFIG          0x006C  /* 1: USE SC VIC */
-
-
-#define IRQF_VALID	(1 << 0)
-#define IRQF_PROBE	(1 << 1)
-#define IRQF_NOAUTOEN	(1 << 2)
-
-#define VIC_IRQ_STATUS0     0x0080
-#define VIC_IRQ_STATUS1     0x0084
-#define VIC_IRQ_STATUS2     0x0088
-#define VIC_IRQ_STATUS3     0x008C
-#define VIC_FIQ_STATUS0     0x0090
-#define VIC_FIQ_STATUS1     0x0094
-#define VIC_FIQ_STATUS2     0x0098
-#define VIC_FIQ_STATUS3     0x009C
-#define VIC_RAW_STATUS0     0x00A0
-#define VIC_RAW_STATUS1     0x00A4
-#define VIC_RAW_STATUS2     0x00A8
-#define VIC_RAW_STATUS3     0x00AC
-#define VIC_INT_CLEAR0      0x00B0
-#define VIC_INT_CLEAR1      0x00B4
-#define VIC_INT_CLEAR2      0x00B8
-#define VIC_INT_CLEAR3      0x00BC
-#define VIC_SOFTINT0        0x00C0
-#define VIC_SOFTINT1        0x00C4
-#define VIC_SOFTINT2        0x00C8
-#define VIC_SOFTINT3        0x00CC
+#define VIC_INT_CLEAR       0x00B0
 #define VIC_IRQ_VEC_RD      0x00D0  /* pending int # */
 #define VIC_IRQ_VEC_PEND_RD 0x00D4  /* pending vector addr */
 #define VIC_IRQ_VEC_WR      0x00D8
 
-
-#define VIC_FIQ_VEC_RD      0x00DC
-#define VIC_FIQ_VEC_PEND_RD 0x00E0
-#define VIC_FIQ_VEC_WR      0x00E4
-#define VIC_IRQ_IN_SERVICE  0x00E8
-#define VIC_IRQ_IN_STACK    0x00EC
-#define VIC_FIQ_IN_SERVICE  0x00F0
-#define VIC_FIQ_IN_STACK    0x00F4
-#define VIC_TEST_BUS_SEL    0x00F8
-#define VIC_IRQ_CTRL_CONFIG 0x00FC
-
-
-#define VIC_VECTPRIORITY(n) 0x0200+((n) * 4)
-#define VIC_VECTADDR(n)     0x0400+((n) * 4)
-
-#define VIC_NUM_REGS	    2
+/* IRQ flags */
+#define IRQF_VALID	(1 << 0)
+#define IRQF_PROBE	(1 << 1)
+#define IRQF_NOAUTOEN	(1 << 2)
 
 void set_irq_flags(unsigned int irq, unsigned int iflags)
 {
@@ -146,23 +85,15 @@ void set_irq_flags(unsigned int irq, unsigned int iflags)
 }
 EXPORT_SYMBOL_GPL(set_irq_flags);
 
-
-static inline void msm_irq_write_all_regs(void __iomem *base, unsigned int val)
-{
-	for (int i = 0; i < VIC_NUM_REGS; i++)
-		writel(val, base + (i * 4));
-}
-
 static void msm_irq_ack(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_CLEAR0, d->irq);
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_CLEAR, d->irq);
 	writel(1 << (d->irq & 31), reg);
 }
 
 static void msm_irq_mask(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_ENCLEAR0, d->irq);
-	unsigned index = VIC_INT_TO_REG_INDEX(d->irq);
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_ENCLEAR, d->irq);
 	uint32_t mask = 1UL << (d->irq & 31);
 
 	writel(mask, reg);
@@ -170,8 +101,7 @@ static void msm_irq_mask(struct irq_data *d)
 
 static void msm_irq_unmask(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_ENSET0, d->irq);
-	unsigned index = VIC_INT_TO_REG_INDEX(d->irq);
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_ENSET, d->irq);
 	uint32_t mask = 1UL << (d->irq & 31);
 
 	writel(mask, reg);
@@ -222,16 +152,20 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	}
 
 	/* select level interrupts */
-	msm_irq_write_all_regs(vic_base + VIC_INT_TYPE0, 0);
+	writel(0, vic_base + VIC_INT_TYPE);
+	writel(0, vic_base + VIC_INT_TYPE + 4);
 
 	/* select highlevel interrupts */
-	msm_irq_write_all_regs(vic_base + VIC_INT_POLARITY0, 0);
+	writel(0, vic_base + VIC_INT_POLARITY);
+	writel(0, vic_base + VIC_INT_POLARITY + 4);
 
 	/* select IRQ for all INTs */
-	msm_irq_write_all_regs(vic_base + VIC_INT_SELECT0, 0);
+	writel(0, vic_base + VIC_INT_SELECT);
+	writel(0, vic_base + VIC_INT_SELECT + 4);
 
 	/* disable all INTs */
-	msm_irq_write_all_regs(vic_base + VIC_INT_EN0, 0);
+	writel(0, vic_base + VIC_INT_EN);
+	writel(0, vic_base + VIC_INT_EN + 4);
 
 	/* don't use vic */
 	writel(0, vic_base + VIC_CONFIG);
