@@ -34,6 +34,24 @@
 static void __iomem *event_base;
 static void __iomem *sts_base;
 
+struct timer_data {
+	int evt_off;
+	int source_off;
+	int sts_off;
+};
+
+static struct timer_data msm_timer_data __initdata = {
+	.evt_off		= 0x4,
+	.source_off		= 0x24,
+	.sts_off		= 0x88,
+};
+
+static struct timer_data qsd8x50_timer_data __initdata = {
+	.evt_off		= 0x0,
+	.source_off		= 0x10,
+	.sts_off		= 0x34,
+};
+
 static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
@@ -194,7 +212,7 @@ err:
 	return res;
 }
 
-static int __init msm_dt_timer_init(struct device_node *np)
+static int __init dt_timer_init(struct device_node *np, struct timer_data *data)
 {
 	u32 freq;
 	int irq, ret;
@@ -237,13 +255,24 @@ static int __init msm_dt_timer_init(struct device_node *np)
 		return -EINVAL;
 	}
 
-	event_base = base + 0x4;
-	sts_base = base + 0x88;
-	source_base = cpu0_base + 0x24;
+	event_base = base + data->evt_off;
+	sts_base = base + data->sts_off;
+	source_base = cpu0_base + data->source_off;
 	freq /= 4;
 	writel_relaxed(DGT_CLK_CTL_DIV_4, source_base + DGT_CLK_CTL);
 
 	return msm_timer_init(freq, 32, irq, !!percpu_offset);
 }
+
+static int __init msm_dt_timer_init(struct device_node *np)
+{
+	return dt_timer_init(np, &msm_timer_data);
+}
 TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
 TIMER_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
+
+static int __init qsd8x50_dt_timer_init(struct device_node *np)
+{
+	return dt_timer_init(np, &qsd8x50_timer_data);
+}
+TIMER_OF_DECLARE(qsd8x50_timer, "qcom,qsd8x50-timer", qsd8x50_dt_timer_init);
