@@ -231,7 +231,9 @@ static int __init dt_timer_init(struct device_node *np, struct timer_data *data)
 	irq = irq_of_parse_and_map(np, 1);
 	if (irq <= 0) {
 		pr_err("Can't get irq\n");
-		return -EINVAL;
+		// hardcode the irq for now
+		irq = 7;
+		//return -EINVAL;
 	}
 
 	/* We use CPU0's DGT for the clocksource */
