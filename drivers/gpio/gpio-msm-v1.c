@@ -646,75 +646,80 @@ static struct irq_chip msm_gpio_irq_chip = {
 static int gpio_msm_v1_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-
 	int i, j = 0;
 	struct msm_gpio_initdata *data;
 	int irq1, irq2;
-	struct resource *res;
-	void __iomem *base1, __iomem *base2;
+	void __iomem *base1, *base2;
 	enum msm_gpio_id id = QSD8k_GPIO;
 
-	switch(id){
-		case QSD8k_GPIO:
-			data = &msm_gpio_8x50_init;
-			break;
-		case MSM7X00_GPIO:
-			data = &msm_gpio_7x01_init;
-			break;
-		case MSM7X30_GPIO:
-			data = &msm_gpio_7x30_init;
+	switch (id) {
+	case QSD8k_GPIO:
+		data = &msm_gpio_8x50_init;
+		break;
+	case MSM7X00_GPIO:
+		data = &msm_gpio_7x01_init;
+		break;
+	case MSM7X30_GPIO:
+		data = &msm_gpio_7x30_init;
+		break;
+	default:
+		return -ENXIO;
 	}
-	
+
 	msm_gpio_chips = data->chips;
 	msm_gpio_count = data->count;
-/* j0sh1x: this seems to parse the device description from mach-msm board files
-	ToDo:	try to replicate what is there in dts*/
-	printk("MSM_GPIO_V1 is probing ! \n");
+
+	printk("MSM_GPIO_V1 is probing!\n");
 	if (!np || !data)
-        return -ENXIO;
+		return -ENXIO;
+
 	irq1 = irq_of_parse_and_map(np, 0);
 	if (irq1 < 0)
 		return -ENXIO;
+
 	irq2 = irq_of_parse_and_map(np, 1);
 	if (irq2 < 0)
 		return -ENXIO;
-		// j0sh1x: is res even used ?
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0); //ToDo: adapt to dt parsing
+
+	printk("IRQ1: %d IRQ2: %d\n", irq1, irq2);
+
+	// Get memory resources
 	base1 = of_iomap(np, 0);
 	if (IS_ERR(base1))
 		return -ENXIO;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1); //ToDo: adapt to dt parsing
 	base2 = of_iomap(np, 1);
 	if (IS_ERR(base2))
 		return -ENXIO;
-/*							*/
+
 	for (i = FIRST_GPIO_IRQ; i < FIRST_GPIO_IRQ + NR_GPIO_IRQS; i++) {
-		if (i - FIRST_GPIO_IRQ >=
-			msm_gpio_chips[j].chip.base +
-			msm_gpio_chips[j].chip.ngpio)
+		if (i - FIRST_GPIO_IRQ >= msm_gpio_chips[j].chip.base + msm_gpio_chips[j].chip.ngpio)
 			j++;
 		irq_set_chip_data(i, &msm_gpio_chips[j]);
-		irq_set_chip_and_handler(i, &msm_gpio_irq_chip,
-					 handle_edge_irq);
+		irq_set_chip_and_handler(i, &msm_gpio_irq_chip, handle_edge_irq);
 		irq_set_status_flags(i, IRQF_VALID);
 	}
-	/* error is somewhere here*/
-	/* Unable to handle kernel NULL pointer dereference at virtual address 00000060 when write */
+
 	for (i = 0; i < msm_gpio_count; i++) {
 		if (i == 1)
 			msm_gpio_chips[i].base = base2;
 		else
 			msm_gpio_chips[i].base = base1;
 		spin_lock_init(&msm_gpio_chips[i].lock);
+
 		msm_gpio_writel(&msm_gpio_chips[i], 0, MSM_GPIO_INT_EN);
-		gpiochip_add(&msm_gpio_chips[i].chip);
+		msm_gpio_chips[i].chip.base = -1;
+		if (gpiochip_add_data(&msm_gpio_chips[i].chip, &msm_gpio_chips[i]) < 0) {
+			printk("Failed to add GPIO chip %d\n", i);
+			return -ENXIO;
+		}
 	}
 
 	irq_set_chained_handler(irq1, msm_gpio_irq_handler);
 	irq_set_chained_handler(irq2, msm_gpio_irq_handler);
 	irq_set_irq_wake(irq1, 1);
 	irq_set_irq_wake(irq2, 1);
+
 	return 0;
 }
 
