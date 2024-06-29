@@ -31,18 +31,6 @@
 #include <asm/exception.h>
 #include <asm/irq.h>
 
-//#include "irqs-qsd8k.h"
-
-#define NR_GPIO_IRQS 165
-#define NR_MSM_IRQS 64
-#define NR_BOARD_IRQS 64
-
-#define NR_IRQS (NR_MSM_IRQS + NR_GPIO_IRQS + NR_BOARD_IRQS)
-
-void __iomem	*vic_base = NULL;
-
-#define VIC_INT_TO_REG_ADDR(base, irq) (base + ((irq & 32) ? 4 : 0))
-
 /* These definitions correspond to the "new mapping" of the
  * register set that interleaves "high" and "low". The offsets
  * below are for the "low" register, add 4 to get to the high one
@@ -65,6 +53,12 @@ void __iomem	*vic_base = NULL;
 #define IRQF_PROBE	(1 << 1)
 #define IRQF_NOAUTOEN	(1 << 2)
 
+#define NR_MSM_IRQS 64
+#define VIC_INT_TO_REG_ADDR(base, irq) (base + ((irq & 32) ? 4 : 0))
+
+void __iomem	*vic_base = NULL;
+
+/* deprecated, todo: remove */
 void set_irq_flags(unsigned int irq, unsigned int iflags)
 {
 	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
