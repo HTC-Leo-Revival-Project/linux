@@ -107,8 +107,7 @@ static void msm_irq_unmask(struct irq_data *d)
 	writel(mask, reg);
 }
 
-static inline void msm_vic_handle_irq(void __iomem *base_addr, struct pt_regs
-		*regs)
+static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 {
 	u32 irqnr;
 	do {
@@ -116,21 +115,12 @@ static inline void msm_vic_handle_irq(void __iomem *base_addr, struct pt_regs
 		 * VIC_IRQ_VEC_PEND_RD has irq# or -1 if none pending *but* if you 
 		 * just read VIC_IRQ_VEC_PEND_RD you never get the first irq for some reason
 		 */
-		irqnr = readl_relaxed(base_addr + VIC_IRQ_VEC_RD);
-		irqnr = readl_relaxed(base_addr + VIC_IRQ_VEC_PEND_RD);
+		irqnr = readl_relaxed(vic_base + VIC_IRQ_VEC_RD);
+		irqnr = readl_relaxed(vic_base + VIC_IRQ_VEC_PEND_RD);
 		if (irqnr == -1)
 			break;
 		handle_IRQ(irqnr, regs);
 	} while (1);
-}
-
-/* enable imprecise aborts */
-#define local_cpsie_enable()  __asm__ __volatile__("cpsie a    @ enable")
-
-static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
-{
-	local_cpsie_enable();// local_abt_enable()?
-	msm_vic_handle_irq(vic_base, regs);
 }
 
 static struct irq_chip msm_irq_chip = {
