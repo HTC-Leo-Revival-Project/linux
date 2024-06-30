@@ -49,12 +49,6 @@
 #define VIC_IRQ_VEC_PEND_RD 0x00D4  /* pending vector addr */
 #define VIC_IRQ_VEC_WR      0x00D8
 
-/* IRQ flags */
-#define IRQF_VALID	(1 << 0)
-#define IRQF_PROBE	(1 << 1)
-#define IRQF_NOAUTOEN	(1 << 2)
-
-#define NR_MSM_IRQS 64
 #define VIC_INT_TO_REG_ADDR(base, irq) (base + ((irq & 32) ? 4 : 0))
 
 void __iomem *vic_base;
@@ -96,7 +90,6 @@ static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 		if (irqnr == -1)
 			break;
 		handle_IRQ(irqnr, regs);
-		//generic_handle_domain_irq(domain, irqnr);
 	} while (1);
 }
 
@@ -163,10 +156,6 @@ static int __init msm_init_irq(struct device_node *node, struct device_node *par
 	if (!domain)
 		panic("Unable to add VIC IRQ domain\n");
 	irq_set_default_host(domain);
-
-	/*for (n = 0; n < msm_nr_irqs; n++) {
-		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);
-	}*/
 
 	/* Ready to receive interrupts */
 	set_handle_irq(vic_handle_irq);
