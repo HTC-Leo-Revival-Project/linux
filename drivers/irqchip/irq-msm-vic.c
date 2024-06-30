@@ -53,7 +53,6 @@
 
 void __iomem *vic_base;
 static struct irq_domain *domain;
-static int nr_msm_irqs;
 
 static void msm_irq_ack(struct irq_data *d)
 {
@@ -117,9 +116,6 @@ static const struct irq_domain_ops msm_vic_irqchip_intc_ops = {
 
 static int __init msm_init_irq(struct device_node *node, struct device_node *parent)
 {
-	unsigned n;
-	int ret;
-
 	vic_base = of_iomap(node, 0);
 
 	if (!vic_base){
@@ -148,9 +144,7 @@ static int __init msm_init_irq(struct device_node *node, struct device_node *par
 	/* enable interrupt controller */
 	writel(3, vic_base + VIC_INT_MASTEREN);
 
-	nr_msm_irqs = 64;
-
-	domain = irq_domain_add_legacy(node, nr_msm_irqs,
+	domain = irq_domain_add_legacy(node, 64,
 					       0, 0,
 					       &msm_vic_irqchip_intc_ops, NULL);
 	if (!domain)
