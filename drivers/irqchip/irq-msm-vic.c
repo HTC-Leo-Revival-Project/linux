@@ -22,6 +22,7 @@
 #include <linux/timer.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
+#include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -56,28 +57,9 @@
 #define NR_MSM_IRQS 64
 #define VIC_INT_TO_REG_ADDR(base, irq) (base + ((irq & 32) ? 4 : 0))
 
-void __iomem	*vic_base = NULL;
-
-/* deprecated, todo: remove */
-void set_irq_flags(unsigned int irq, unsigned int iflags)
-{
-	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
-
-	if (irq >= NR_MSM_IRQS) {
-		pr_err("Trying to set irq flags for IRQ%d\n", irq);
-		return;
-	}
-
-	if (iflags & IRQF_VALID)
-		clr |= IRQ_NOREQUEST;
-	if (iflags & IRQF_PROBE)
-		clr |= IRQ_NOPROBE;
-	if (!(iflags & IRQF_NOAUTOEN))
-		clr |= IRQ_NOAUTOEN;
-	/* Order is clear bits in "clr" then set bits in "set" */
-	irq_modify_status(irq, clr, set & ~clr);
-}
-EXPORT_SYMBOL_GPL(set_irq_flags);
+void __iomem *vic_base;
+static struct irq_domain *domain;
+static int nr_msm_irqs;
 
 static void msm_irq_ack(struct irq_data *d)
 {
@@ -113,7 +95,8 @@ static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 		irqnr = readl_relaxed(vic_base + VIC_IRQ_VEC_PEND_RD);
 		if (irqnr == -1)
 			break;
-		handle_IRQ(irqnr, regs);
+		//handle_IRQ(irqnr, regs);
+		generic_handle_domain_irq(domain, irqnr);
 	} while (1);
 }
 
@@ -125,14 +108,33 @@ static struct irq_chip msm_irq_chip = {
 	.irq_unmask    = msm_irq_unmask,
 };
 
-static int __init msm_init_irq(struct device_node *intc, struct device_node *parent)
+static int msm_vic_map(struct irq_domain *d, unsigned int irq,
+		       irq_hw_number_t hw)
+{
+	//irq_set_status_flags(irq, IRQF_VALID);//IRQ_LEVEL);
+
+	irq_set_chip_and_handler(irq, &msm_irq_chip, handle_level_irq);
+	irq_set_chip_data(irq, d->host_data);//vic_base);
+	irq_set_probe(irq);
+	//irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq)));
+
+	return 0;
+}
+
+static const struct irq_domain_ops msm_vic_irqchip_intc_ops = {
+	.xlate = irq_domain_xlate_onetwocell,
+	.map = msm_vic_map,
+};
+
+static int __init msm_init_irq(struct device_node *node, struct device_node *parent)
 {
 	unsigned n;
+	int ret;
 
-	vic_base = of_iomap(intc, 0);
+	vic_base = of_iomap(node, 0);
 
 	if (!vic_base){
-		panic("%pOF: unable to map local interrupt registers\n", intc);
+		panic("%pOF: unable to map local interrupt registers\n", node);
 	}
 
 	/* select level interrupts */
@@ -157,10 +159,17 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	/* enable interrupt controller */
 	writel(3, vic_base + VIC_INT_MASTEREN);
 
-	for (n = 0; n < NR_MSM_IRQS; n++) {
+	nr_msm_irqs = 64;
+
+	domain = irq_domain_add_linear(node, 32,
+					    &msm_vic_irqchip_intc_ops,
+					    NULL);
+	if (!domain)
+		panic("%pOF: unable to create IRQ domain\n", node);
+
+	/*for (n = 0; n < msm_nr_irqs; n++) {
 		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);
-		set_irq_flags(n, IRQF_VALID);
-	}
+	}*/
 
 	/* Ready to receive interrupts */
 	set_handle_irq(vic_handle_irq);
