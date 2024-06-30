@@ -95,8 +95,8 @@ static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 		irqnr = readl_relaxed(vic_base + VIC_IRQ_VEC_PEND_RD);
 		if (irqnr == -1)
 			break;
-		//handle_IRQ(irqnr, regs);
-		generic_handle_domain_irq(domain, irqnr);
+		handle_IRQ(irqnr, regs);
+		//generic_handle_domain_irq(domain, irqnr);
 	} while (1);
 }
 
@@ -111,12 +111,8 @@ static struct irq_chip msm_irq_chip = {
 static int msm_vic_map(struct irq_domain *d, unsigned int irq,
 		       irq_hw_number_t hw)
 {
-	//irq_set_status_flags(irq, IRQF_VALID);//IRQ_LEVEL);
-
 	irq_set_chip_and_handler(irq, &msm_irq_chip, handle_level_irq);
-	irq_set_chip_data(irq, d->host_data);//vic_base);
-	irq_set_probe(irq);
-	//irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq)));
+	irq_set_chip_data(irq, vic_base);
 
 	return 0;
 }
@@ -161,11 +157,12 @@ static int __init msm_init_irq(struct device_node *node, struct device_node *par
 
 	nr_msm_irqs = 64;
 
-	domain = irq_domain_add_linear(node, 32,
-					    &msm_vic_irqchip_intc_ops,
-					    NULL);
+	domain = irq_domain_add_legacy(node, nr_msm_irqs,
+					       0, 0,
+					       &msm_vic_irqchip_intc_ops, NULL);
 	if (!domain)
-		panic("%pOF: unable to create IRQ domain\n", node);
+		panic("Unable to add VIC IRQ domain\n");
+	irq_set_default_host(domain);
 
 	/*for (n = 0; n < msm_nr_irqs; n++) {
 		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);

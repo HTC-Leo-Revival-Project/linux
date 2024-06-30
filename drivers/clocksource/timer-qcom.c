@@ -228,8 +228,8 @@ static int __init dt_timer_init(struct device_node *np, struct timer_data *data)
 	}
 
 	/* We use GPT0 for the clockevent */
-	irq = irq_of_parse_and_map(np, 1);
-	if (irq < 0) {
+	irq = irq_of_parse_and_map(np, 0);
+	if (irq <= 0) {
 		pr_err("Can't get irq\n");
 		return -EINVAL;
 	}
