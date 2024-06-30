@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2024, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, HTC Leo Revival Project. All rights reserved.
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "Qualcomm QSD8250";
+	compatible = "qcom,qsd8250";
+	interrupt-parent = <&intc>;
+
+	chosen { };
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
+	};
+
+	clocks {
+		xo_board: xo_board {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <19200000>;
+		};
+
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+
+		uart1_clk: uart1_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <1843200>;
+		};
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "qcom,scorpion";
+			device_type = "cpu";
+			reg = <0>;
+			next-level-cache = <&L2>;
+		};
+
+		L2: l2-cache {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+		};
+	};
+
+	soc: soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		intc: interrupt-controller@ac000000 {
+			compatible = "arm,msm-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0xac000000 0x1000>;
+		};
+
+		blsp1_uart1: serial@a9a00000 {
+			compatible = "qcom,msm-uart";
+			reg = <0xa9a00000 0x1000>;
+			interrupts = <64>;
+			clocks = <&uart1_clk>;
+			clock-names = "core";
+		};
+
+		timer@ac100000 {
+			compatible = "qcom,qsd8x50-timer";
+			interrupts = <7>;
+			reg = <0xac100000 0x100>;
+			clock-frequency = <19200000>;
+		};
+	};
+};
