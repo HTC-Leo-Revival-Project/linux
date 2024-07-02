@@ -116,10 +116,17 @@ static const struct irq_domain_ops msm_vic_irqchip_intc_ops = {
 
 static int __init msm_init_irq(struct device_node *node, struct device_node *parent)
 {
+	int ret;
+
 	vic_base = of_iomap(node, 0);
 
 	if (!vic_base){
 		panic("%pOF: unable to map local interrupt registers\n", node);
+	}
+
+	ret = irq_alloc_descs(-1, 0, 64, 0);
+	if (ret < 0) {
+		pr_warn("Couldn't allocate IRQ numbers\n");
 	}
 
 	/* select level interrupts */
