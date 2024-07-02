@@ -87,7 +87,7 @@
 #define NUM_SIRC_REGS 2
 
 void __iomem *sirc_base;
-//static struct irq_domain *sirc_domain;
+static struct irq_domain *domain;
 int parent_irq; //9
 
 /* Mask off the given interrupt. Keep the int_enable mask in sync with
@@ -172,7 +172,6 @@ static void sirc_irq_handler(struct irq_desc *desc)//unsigned int irq, struct ir
 	//unsigned int reg = 0;
 	unsigned int sirq;
 	unsigned int status;
-    unsigned int irq;
 
 	/*while ((reg < NUM_SIRC_REGS) && (irq != parent_irq))
 		reg++;*/
@@ -231,7 +230,7 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 
     domain = irq_domain_add_legacy(node, NR_SIRC_IRQS,
 					       irq_base, FIRST_SIRC_IRQ,
-					       &msm_vic_irqchip_intc_ops, NULL);
+					       &msm_sirc_irqchip_intc_ops, NULL);
 	if (!domain)
 		panic("Unable to add SIRC IRQ domain\n");
 
