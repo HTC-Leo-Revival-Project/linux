@@ -223,8 +223,13 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 		panic("%pOF: unable to map sirc interrupt registers\n", node);
 	}
 
-    domain = irq_domain_add_legacy(node, 64,
-					       0, 0,
+    ret = irq_alloc_descs(-1, FIRST_SIRC_IRQ, NR_SIRC_IRQS, 0);
+	if (ret < 0) {
+		pr_warn("Couldn't allocate IRQ numbers\n");
+	}
+
+    domain = irq_domain_add_legacy(node, NR_SIRC_IRQS,
+					       FIRST_SIRC_IRQ, FIRST_SIRC_IRQ,
 					       &msm_vic_irqchip_intc_ops, NULL);
 	if (!domain)
 		panic("Unable to add SIRC IRQ domain\n");
