@@ -169,13 +169,13 @@ static int sirc_irq_set_type(struct irq_data *d, unsigned int flow_type)
 /* Finds the pending interrupt on the passed cascade irq and redrives it */
 static void sirc_irq_handler(struct irq_desc *desc)//unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int reg = 0;
+	//unsigned int reg = 0;
 	unsigned int sirq;
 	unsigned int status;
     unsigned int irq;
 
-	while ((reg < NUM_SIRC_REGS) && (irq != parent_irq))
-		reg++;
+	/*while ((reg < NUM_SIRC_REGS) && (irq != parent_irq))
+		reg++;*/
 
 	status = readl(sirc_base + SIRC_IRQ_STATUS);
 	status &= SIRC_MASK;
@@ -200,6 +200,20 @@ static struct irq_chip sirc_irq_chip = {
 	.irq_set_type  = sirc_irq_set_type,
 };
 
+static int msm_sirc_map(struct irq_domain *d, unsigned int irq,
+		       irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(irq, &sirc_irq_chip, handle_edge_irq);
+	irq_set_chip_data(irq, sirc_base);
+
+	return 0;
+}
+
+static const struct irq_domain_ops msm_sirc_irqchip_intc_ops = {
+	.xlate = irq_domain_xlate_onetwocell,
+	.map = msm_sirc_map,
+};
+
 static int __init msm_init_sirc(struct device_node *node, struct device_node *parent)
 {
 	int i;
@@ -209,6 +223,12 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 		panic("%pOF: unable to map sirc interrupt registers\n", node);
 	}
 
+    domain = irq_domain_add_legacy(node, 64,
+					       0, 0,
+					       &msm_vic_irqchip_intc_ops, NULL);
+	if (!domain)
+		panic("Unable to add SIRC IRQ domain\n");
+
 	/* Map the parent interrupt for the chained handler */
 	parent_irq = irq_of_parse_and_map(node, 0);
 	if (parent_irq <= 0) {
@@ -217,10 +237,10 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 	}
 	//domain_ops = &
 
-	for (i = FIRST_SIRC_IRQ; i < LAST_SIRC_IRQ; i++) {
+	/*for (i = FIRST_SIRC_IRQ; i < LAST_SIRC_IRQ; i++) {
 		irq_set_chip_and_handler(i, &sirc_irq_chip, handle_edge_irq);
 		//set_irq_flags(i, IRQF_VALID); TODO: domains
-	}
+	}*/
 
 	for (i = 0; i < NUM_SIRC_REGS; i++) {
 		irq_set_chained_handler(parent_irq,
