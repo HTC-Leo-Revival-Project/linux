@@ -203,7 +203,7 @@ static int msm_sirc_map(struct irq_domain *d, unsigned int irq,
 		       irq_hw_number_t hw)
 {
 	irq_set_chip_and_handler(irq, &sirc_irq_chip, handle_edge_irq);
-	irq_set_chip_data(irq, sirc_base);
+	irq_set_probe(irq);
 
 	return 0;
 }
@@ -215,7 +215,7 @@ static const struct irq_domain_ops msm_sirc_irqchip_intc_ops = {
 
 static int __init msm_init_sirc(struct device_node *node, struct device_node *parent)
 {
-	int i, irq_base;
+	int irq_base;
 
 	sirc_base = of_iomap(node, 0);
     if (!sirc_base){
@@ -240,18 +240,12 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 		pr_err("%pOF: unable to parse sirc irq\n", node);
 		return -EINVAL;
 	}
-	//domain_ops = &
 
-	/*for (i = FIRST_SIRC_IRQ; i < LAST_SIRC_IRQ; i++) {
-		irq_set_chip_and_handler(i, &sirc_irq_chip, handle_edge_irq);
-		//set_irq_flags(i, IRQF_VALID); TODO: domains
-	}*/
+    if (request_irq(parent_irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to register cascade interrupt\n");
 
-	for (i = 0; i < NUM_SIRC_REGS; i++) {
-		irq_set_chained_handler(parent_irq,
-					sirc_irq_handler);
-		irq_set_irq_wake(parent_irq, 1);
-	}
+    irq_set_chained_handler_and_data(parent_irq, sirc_irq_handler,
+					 domain);
 
 	return 0;
 }
