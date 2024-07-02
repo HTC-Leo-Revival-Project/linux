@@ -30,24 +30,65 @@
 #include <asm/exception.h>
 #include <asm/irq.h>
 
-static unsigned int int_enable;
-static unsigned int wake_enable;
+/*
+ * Secondary interrupt controller interrupts
+ */
 
-static struct sirc_regs_t sirc_regs = {
-	.int_enable       = SPSS_SIRC_INT_ENABLE,
-	.int_enable_clear = SPSS_SIRC_INT_ENABLE_CLEAR,
-	.int_enable_set   = SPSS_SIRC_INT_ENABLE_SET,
-	.int_type         = SPSS_SIRC_INT_TYPE,
-	.int_polarity     = SPSS_SIRC_INT_POLARITY,
-	.int_clear        = SPSS_SIRC_INT_CLEAR,
-};
+/* reference for now
 
-static struct sirc_cascade_regs sirc_reg_table[] = {
-	{
-		.int_status  = SPSS_SIRC_IRQ_STATUS,
-		.cascade_irq = INT_SIRC_0,
-	}
-};
+#define INT_UART1                     (FIRST_SIRC_IRQ + 0)
+#define INT_UART2                     (FIRST_SIRC_IRQ + 1)
+#define INT_UART3                     (FIRST_SIRC_IRQ + 2)
+#define INT_UART1_RX                  (FIRST_SIRC_IRQ + 3)
+#define INT_UART2_RX                  (FIRST_SIRC_IRQ + 4)
+#define INT_UART3_RX                  (FIRST_SIRC_IRQ + 5)
+#define INT_SPI_INPUT                 (FIRST_SIRC_IRQ + 6)
+#define INT_SPI_OUTPUT                (FIRST_SIRC_IRQ + 7)
+#define INT_SPI_ERROR                 (FIRST_SIRC_IRQ + 8)
+#define INT_GPIO_GROUP1               (FIRST_SIRC_IRQ + 9)
+#define INT_GPIO_GROUP2               (FIRST_SIRC_IRQ + 10)
+#define INT_GPIO_GROUP1_SECURE        (FIRST_SIRC_IRQ + 11)
+#define INT_GPIO_GROUP2_SECURE        (FIRST_SIRC_IRQ + 12)
+#define INT_AVS_SVIC                  (FIRST_SIRC_IRQ + 13)
+#define INT_AVS_REQ_UP                (FIRST_SIRC_IRQ + 14)
+#define INT_AVS_REQ_DOWN              (FIRST_SIRC_IRQ + 15)
+#define INT_PBUS_ERR                  (FIRST_SIRC_IRQ + 16)
+#define INT_AXI_ERR                   (FIRST_SIRC_IRQ + 17)
+#define INT_SMI_ERR                   (FIRST_SIRC_IRQ + 18)
+#define INT_EBI1_ERR                  (FIRST_SIRC_IRQ + 19)
+#define INT_IMEM_ERR                  (FIRST_SIRC_IRQ + 20)
+#define INT_TEMP_SENSOR               (FIRST_SIRC_IRQ + 21)
+#define INT_TV_ENC                    (FIRST_SIRC_IRQ + 22)
+#define INT_GRP2D                     (FIRST_SIRC_IRQ + 23)
+#define INT_GSBI_QUP                  (FIRST_SIRC_IRQ + 24)
+#define INT_SC_ACG                    (FIRST_SIRC_IRQ + 25)
+#define INT_WDT0                      (FIRST_SIRC_IRQ + 26)
+#define INT_WDT1                      (FIRST_SIRC_IRQ + 27)*/
+
+#define NR_SIRC_IRQS                  23
+#define SIRC_MASK                     0x007FFFFF
+
+#define FIRST_SIRC_IRQ                64
+#define LAST_SIRC_IRQ                 (FIRST_SIRC_IRQ + NR_SIRC_IRQS - 1)
+
+#define SIRC_INT_SELECT          0x00
+#define SIRC_INT_ENABLE          0x04
+#define SIRC_INT_ENABLE_CLEAR    0x08
+#define SIRC_INT_ENABLE_SET      0x0C
+#define SIRC_INT_TYPE            0x10
+#define SIRC_INT_POLARITY        0x14
+#define SIRC_SECURITY            0x18
+#define SIRC_IRQ_STATUS          0x1C
+#define SIRC_IRQ1_STATUS         0x20
+#define SIRC_RAW_STATUS          0x24
+#define SIRC_INT_CLEAR           0x28
+#define SIRC_SOFT_INT            0x2C
+
+#define NUM_SIRC_REGS 2
+
+void __iomem *sirc_base;
+//static struct irq_domain *sirc_domain;
+int parent_irq; //9
 
 /* Mask off the given interrupt. Keep the int_enable mask in sync with
    the enable reg, so it can be restored after power collapse. */
@@ -56,8 +97,8 @@ static void sirc_irq_mask(struct irq_data *d)
 	unsigned int mask;
 
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	writel(mask, sirc_regs.int_enable_clear);
-	int_enable &= ~mask;
+	writel(mask, sirc_base + SIRC_INT_ENABLE_CLEAR);
+	//int_enable &= ~mask;
 	return;
 }
 
@@ -68,8 +109,8 @@ static void sirc_irq_unmask(struct irq_data *d)
 	unsigned int mask;
 
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	writel(mask, sirc_regs.int_enable_set);
-	int_enable |= mask;
+	writel(mask, sirc_base + SIRC_INT_ENABLE_SET);
+	//int_enable |= mask;
 	return;
 }
 
@@ -78,7 +119,7 @@ static void sirc_irq_ack(struct irq_data *d)
 	unsigned int mask;
 
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	writel(mask, sirc_regs.int_clear);
+	writel(mask, sirc_base + SIRC_INT_CLEAR);
 	return;
 }
 
@@ -88,10 +129,10 @@ static int sirc_irq_set_wake(struct irq_data *d, unsigned int on)
 
 	/* Used to set the interrupt enable mask during power collapse. */
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	if (on)
+	/*if (on)
 		wake_enable |= mask;
 	else
-		wake_enable &= ~mask;
+		wake_enable &= ~mask;*/
 
 	return 0;
 }
@@ -102,41 +143,41 @@ static int sirc_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	unsigned int val;
 
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	val = readl(sirc_regs.int_polarity);
+	val = readl(sirc_base + SIRC_INT_POLARITY);
 
 	if (flow_type & (IRQF_TRIGGER_LOW | IRQF_TRIGGER_FALLING))
 		val |= mask;
 	else
 		val &= ~mask;
 
-	writel(val, sirc_regs.int_polarity);
+	writel(val, sirc_base + SIRC_INT_POLARITY);
 
-	val = readl(sirc_regs.int_type);
+	val = readl(sirc_base + SIRC_INT_TYPE);
 	if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
 		val |= mask;
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	} else {
 		val &= ~mask;
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	}
 
-	writel(val, sirc_regs.int_type);
+	writel(val, sirc_base + SIRC_INT_TYPE);
 
 	return 0;
 }
 
 /* Finds the pending interrupt on the passed cascade irq and redrives it */
-static void sirc_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void sirc_irq_handler(struct irq_desc *desc)//unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int reg = 0;
 	unsigned int sirq;
 	unsigned int status;
+    unsigned int irq;
 
-	while ((reg < ARRAY_SIZE(sirc_reg_table)) &&
-		(sirc_reg_table[reg].cascade_irq != irq))
+	while ((reg < NUM_SIRC_REGS) && (irq != parent_irq))
 		reg++;
 
-	status = readl(sirc_reg_table[reg].int_status);
+	status = readl(sirc_base + SIRC_IRQ_STATUS);
 	status &= SIRC_MASK;
 	if (status == 0)
 		return;
@@ -159,22 +200,35 @@ static struct irq_chip sirc_irq_chip = {
 	.irq_set_type  = sirc_irq_set_type,
 };
 
-void __init msm_init_sirc(void)
+static int __init msm_init_sirc(struct device_node *node, struct device_node *parent)
 {
 	int i;
 
-	int_enable = 0;
-	wake_enable = 0;
+	sirc_base = of_iomap(node, 0);
+    if (!sirc_base){
+		panic("%pOF: unable to map sirc interrupt registers\n", node);
+	}
+
+	/* Map the parent interrupt for the chained handler */
+	parent_irq = irq_of_parse_and_map(node, 0);
+	if (parent_irq <= 0) {
+		pr_err("%pOF: unable to parse sirc irq\n", node);
+		return -EINVAL;
+	}
+	//domain_ops = &
 
 	for (i = FIRST_SIRC_IRQ; i < LAST_SIRC_IRQ; i++) {
 		irq_set_chip_and_handler(i, &sirc_irq_chip, handle_edge_irq);
-		set_irq_flags(i, IRQF_VALID);
+		//set_irq_flags(i, IRQF_VALID); TODO: domains
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sirc_reg_table); i++) {
-		irq_set_chained_handler(sirc_reg_table[i].cascade_irq,
+	for (i = 0; i < NUM_SIRC_REGS; i++) {
+		irq_set_chained_handler(parent_irq,
 					sirc_irq_handler);
-		irq_set_irq_wake(sirc_reg_table[i].cascade_irq, 1);
+		irq_set_irq_wake(parent_irq, 1);
 	}
-	return;
+
+	return 0;
 }
+
+IRQCHIP_DECLARE(arm_msm_sirc, "arm,msm-sirc", msm_init_sirc);
