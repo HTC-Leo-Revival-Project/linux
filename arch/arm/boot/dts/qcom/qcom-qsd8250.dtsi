@@ -83,7 +83,7 @@
 		blsp1_uart1: serial@a9a00000 {
 			compatible = "qcom,msm-uart";
 			reg = <0xa9a00000 0x1000>;
-			//interrupt-parent = <&sirc>;
+			interrupt-parent = <&sirc>;
 			interrupts = <64>;
 			clocks = <&uart1_clk>;
 			clock-names = "core";
