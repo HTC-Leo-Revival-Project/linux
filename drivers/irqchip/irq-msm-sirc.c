@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -30,46 +31,10 @@
 #include <asm/exception.h>
 #include <asm/irq.h>
 
-/*
- * Secondary interrupt controller interrupts
- */
-
-/* reference for now
-
-#define INT_UART1                     (FIRST_SIRC_IRQ + 0)
-#define INT_UART2                     (FIRST_SIRC_IRQ + 1)
-#define INT_UART3                     (FIRST_SIRC_IRQ + 2)
-#define INT_UART1_RX                  (FIRST_SIRC_IRQ + 3)
-#define INT_UART2_RX                  (FIRST_SIRC_IRQ + 4)
-#define INT_UART3_RX                  (FIRST_SIRC_IRQ + 5)
-#define INT_SPI_INPUT                 (FIRST_SIRC_IRQ + 6)
-#define INT_SPI_OUTPUT                (FIRST_SIRC_IRQ + 7)
-#define INT_SPI_ERROR                 (FIRST_SIRC_IRQ + 8)
-#define INT_GPIO_GROUP1               (FIRST_SIRC_IRQ + 9)
-#define INT_GPIO_GROUP2               (FIRST_SIRC_IRQ + 10)
-#define INT_GPIO_GROUP1_SECURE        (FIRST_SIRC_IRQ + 11)
-#define INT_GPIO_GROUP2_SECURE        (FIRST_SIRC_IRQ + 12)
-#define INT_AVS_SVIC                  (FIRST_SIRC_IRQ + 13)
-#define INT_AVS_REQ_UP                (FIRST_SIRC_IRQ + 14)
-#define INT_AVS_REQ_DOWN              (FIRST_SIRC_IRQ + 15)
-#define INT_PBUS_ERR                  (FIRST_SIRC_IRQ + 16)
-#define INT_AXI_ERR                   (FIRST_SIRC_IRQ + 17)
-#define INT_SMI_ERR                   (FIRST_SIRC_IRQ + 18)
-#define INT_EBI1_ERR                  (FIRST_SIRC_IRQ + 19)
-#define INT_IMEM_ERR                  (FIRST_SIRC_IRQ + 20)
-#define INT_TEMP_SENSOR               (FIRST_SIRC_IRQ + 21)
-#define INT_TV_ENC                    (FIRST_SIRC_IRQ + 22)
-#define INT_GRP2D                     (FIRST_SIRC_IRQ + 23)
-#define INT_GSBI_QUP                  (FIRST_SIRC_IRQ + 24)
-#define INT_SC_ACG                    (FIRST_SIRC_IRQ + 25)
-#define INT_WDT0                      (FIRST_SIRC_IRQ + 26)
-#define INT_WDT1                      (FIRST_SIRC_IRQ + 27)*/
-
 #define NR_SIRC_IRQS                  23
 #define SIRC_MASK                     0x007FFFFF
 
 #define FIRST_SIRC_IRQ                64
-#define LAST_SIRC_IRQ                 (FIRST_SIRC_IRQ + NR_SIRC_IRQS - 1)
 
 #define SIRC_INT_SELECT          0x00
 #define SIRC_INT_ENABLE          0x04
@@ -88,7 +53,8 @@
 
 void __iomem *sirc_base;
 static struct irq_domain *domain;
-int parent_irq; //9
+
+int parent_irq;
 
 /* Mask off the given interrupt. Keep the int_enable mask in sync with
    the enable reg, so it can be restored after power collapse. */
@@ -167,27 +133,29 @@ static int sirc_irq_set_type(struct irq_data *d, unsigned int flow_type)
 }
 
 /* Finds the pending interrupt on the passed cascade irq and redrives it */
-static void sirc_irq_handler(struct irq_desc *desc)//unsigned int irq, struct irq_desc *desc)
+static void sirc_irq_handler(struct irq_desc *desc)
 {
-	//unsigned int reg = 0;
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct irq_domain *d = irq_desc_get_handler_data(desc);
 	unsigned int sirq;
 	unsigned int status;
 
-	/*while ((reg < NUM_SIRC_REGS) && (irq != parent_irq))
-		reg++;*/
+	chained_irq_enter(chip, desc);
 
 	status = readl(sirc_base + SIRC_IRQ_STATUS);
 	status &= SIRC_MASK;
 	if (status == 0)
 		return;
 
-	for (sirq = 0;
-	     (sirq < NR_SIRC_IRQS) && ((status & (1U << sirq)) == 0);
-	     sirq++)
-		;
-	generic_handle_irq(sirq+FIRST_SIRC_IRQ);
+	for (sirq = 0; (sirq < NR_SIRC_IRQS); sirq++) {
+		if((status & (1U << sirq)) != 0) {
+			generic_handle_domain_irq(d, sirq);
+		}
+	}
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
+
+	chained_irq_exit(chip, desc);
 }
 
 static struct irq_chip sirc_irq_chip = {
