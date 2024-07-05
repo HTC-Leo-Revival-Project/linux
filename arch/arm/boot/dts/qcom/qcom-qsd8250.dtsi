@@ -84,7 +84,7 @@
 			compatible = "qcom,msm-uart";
 			reg = <0xa9a00000 0x1000>;
 			interrupt-parent = <&sirc>;
-			interrupts = <64>;
+			interrupts = <0>;
 			clocks = <&uart1_clk>;
 			clock-names = "core";
 		};
