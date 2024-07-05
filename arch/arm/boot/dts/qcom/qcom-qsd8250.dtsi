@@ -92,6 +92,7 @@
 
 		timer@ac100000 {
 			compatible = "qcom,qsd8x50-timer";
+			interrupt-parent = <&intc>;
 			interrupts = <7>;
 			reg = <0xac100000 0x100>;
 			clock-frequency = <19200000>;
