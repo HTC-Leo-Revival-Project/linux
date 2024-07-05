@@ -51,20 +51,24 @@
 
 #define NUM_SIRC_REGS 2
 
-void __iomem *sirc_base;
-static struct irq_domain *domain;
-
-int parent_irq;
+struct msm_sirc {
+	void __iomem		*base;
+	int					parent_irq;
+	struct irq_domain	*domain;
+	u32					int_enable;
+	u32					wake_enable;
+};
 
 /* Mask off the given interrupt. Keep the int_enable mask in sync with
    the enable reg, so it can be restored after power collapse. */
 static void sirc_irq_mask(struct irq_data *d)
 {
+	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
 	unsigned int mask;
 
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	writel(mask, sirc_base + SIRC_INT_ENABLE_CLEAR);
-	//int_enable &= ~mask;
+	writel(mask, sirc->base + SIRC_INT_ENABLE_CLEAR);
+	sirc->int_enable &= ~mask;
 	return;
 }
 
@@ -72,53 +76,57 @@ static void sirc_irq_mask(struct irq_data *d)
    the enable reg, so it can be restored after power collapse. */
 static void sirc_irq_unmask(struct irq_data *d)
 {
+	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
 	unsigned int mask;
 
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	writel(mask, sirc_base + SIRC_INT_ENABLE_SET);
-	//int_enable |= mask;
+	writel(mask, sirc->base + SIRC_INT_ENABLE_SET);
+	sirc->int_enable |= mask;
 	return;
 }
 
 static void sirc_irq_ack(struct irq_data *d)
 {
+	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
 	unsigned int mask;
 
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	writel(mask, sirc_base + SIRC_INT_CLEAR);
+	writel(mask, sirc->base + SIRC_INT_CLEAR);
 	return;
 }
 
 static int sirc_irq_set_wake(struct irq_data *d, unsigned int on)
 {
+	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
 	unsigned int mask;
 
 	/* Used to set the interrupt enable mask during power collapse. */
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	/*if (on)
-		wake_enable |= mask;
+	if (on)
+		sirc->wake_enable |= mask;
 	else
-		wake_enable &= ~mask;*/
+		sirc->wake_enable &= ~mask;
 
 	return 0;
 }
 
 static int sirc_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
+	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
 	unsigned int mask;
 	unsigned int val;
 
 	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
-	val = readl(sirc_base + SIRC_INT_POLARITY);
+	val = readl(sirc->base + SIRC_INT_POLARITY);
 
 	if (flow_type & (IRQF_TRIGGER_LOW | IRQF_TRIGGER_FALLING))
 		val |= mask;
 	else
 		val &= ~mask;
 
-	writel(val, sirc_base + SIRC_INT_POLARITY);
+	writel(val, sirc->base + SIRC_INT_POLARITY);
 
-	val = readl(sirc_base + SIRC_INT_TYPE);
+	val = readl(sirc->base + SIRC_INT_TYPE);
 	if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
 		val |= mask;
 		irq_set_handler_locked(d, handle_edge_irq);
@@ -127,7 +135,7 @@ static int sirc_irq_set_type(struct irq_data *d, unsigned int flow_type)
 		irq_set_handler_locked(d, handle_level_irq);
 	}
 
-	writel(val, sirc_base + SIRC_INT_TYPE);
+	writel(val, sirc->base + SIRC_INT_TYPE);
 
 	return 0;
 }
@@ -136,20 +144,38 @@ static int sirc_irq_set_type(struct irq_data *d, unsigned int flow_type)
 static void sirc_irq_handler(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct irq_domain *d = irq_desc_get_handler_data(desc);
+	struct msm_sirc *sirc = irq_desc_get_handler_data(desc);
 	unsigned int sirq;
 	unsigned int status;
+	
+	/*
+	while ((reg < ARRAY_SIZE(sirc_reg_table)) &&
+		(sirc_reg_table[reg].cascade_irq != irq))
+		reg++;
+
+	if (reg == ARRAY_SIZE(sirc_reg_table)) {
+		printk(KERN_ERR "%s: incorrect irq %d called\n",
+			__func__, irq);
+		return;
+	}*/
 
 	chained_irq_enter(chip, desc);
 
-	status = readl(sirc_base + SIRC_IRQ_STATUS);
+	status = readl(sirc->base + SIRC_IRQ_STATUS);
 	status &= SIRC_MASK;
 	if (status == 0)
 		return;
 
+	/*
+	for (sirq = 0;
+	     (sirq < NR_SIRC_IRQS) && ((status & (1U << sirq)) == 0);
+	     sirq++)
+		;
+		generic_handle_irq(sirq+FIRST_SIRC_IRQ);
+	*/
 	for (sirq = 0; (sirq < NR_SIRC_IRQS); sirq++) {
 		if((status & (1U << sirq)) != 0) {
-			generic_handle_domain_irq(d, sirq);
+			generic_handle_domain_irq(sirc->domain, sirq);
 		}
 	}
 
@@ -171,7 +197,8 @@ static int msm_sirc_map(struct irq_domain *d, unsigned int irq,
 		       irq_hw_number_t hw)
 {
 	irq_set_chip_and_handler(irq, &sirc_irq_chip, handle_edge_irq);
-	irq_set_probe(irq);
+	irq_set_chip_data(irq, d->host_data);
+	irq_set_noprobe(irq);
 
 	return 0;
 }
@@ -185,8 +212,13 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 {
 	int irq_base;
 
-	sirc_base = of_iomap(node, 0);
-    if (!sirc_base){
+	struct msm_sirc *sirc;
+	sirc = kzalloc(sizeof(*sirc), GFP_KERNEL);
+	if (!sirc)
+		return -ENOMEM;
+
+	sirc->base = of_iomap(node, 0);
+    if (!sirc->base){
 		panic("%pOF: unable to map sirc interrupt registers\n", node);
 	}
 
@@ -196,24 +228,25 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
         irq_base = 0;
 	}
 
-    domain = irq_domain_add_legacy(node, NR_SIRC_IRQS,
+    sirc->domain = irq_domain_add_legacy(node, NR_SIRC_IRQS,
 					       irq_base, FIRST_SIRC_IRQ,
 					       &msm_sirc_irqchip_intc_ops, NULL);
-	if (!domain)
+	if (!sirc->domain)
 		panic("Unable to add SIRC IRQ domain\n");
 
 	/* Map the parent interrupt for the chained handler */
-	parent_irq = irq_of_parse_and_map(node, 0);
-	if (parent_irq <= 0) {
+	sirc->parent_irq = irq_of_parse_and_map(node, 0);
+	if (sirc->parent_irq <= 0) {
 		pr_err("%pOF: unable to parse sirc irq\n", node);
 		return -EINVAL;
 	}
 
-    if (request_irq(parent_irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+    if (request_irq(sirc->parent_irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
 		pr_err("Failed to register cascade interrupt\n");
 
-    irq_set_chained_handler_and_data(parent_irq, sirc_irq_handler,
-					 domain);
+    irq_set_chained_handler_and_data(sirc->parent_irq, 
+					sirc_irq_handler,
+					sirc);
 
 	return 0;
 }
