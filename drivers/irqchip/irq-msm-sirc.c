@@ -16,6 +16,7 @@
  *
  */
 
+#include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -64,9 +65,8 @@ struct msm_sirc {
 static void sirc_irq_mask(struct irq_data *d)
 {
 	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
-	unsigned int mask;
+	unsigned int mask = BIT(d->hwirq);
 
-	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
 	writel(mask, sirc->base + SIRC_INT_ENABLE_CLEAR);
 	sirc->int_enable &= ~mask;
 	return;
@@ -77,9 +77,8 @@ static void sirc_irq_mask(struct irq_data *d)
 static void sirc_irq_unmask(struct irq_data *d)
 {
 	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
-	unsigned int mask;
+	unsigned int mask = BIT(d->hwirq);
 
-	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
 	writel(mask, sirc->base + SIRC_INT_ENABLE_SET);
 	sirc->int_enable |= mask;
 	return;
@@ -88,9 +87,8 @@ static void sirc_irq_unmask(struct irq_data *d)
 static void sirc_irq_ack(struct irq_data *d)
 {
 	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
-	unsigned int mask;
+	unsigned int mask = BIT(d->hwirq);
 
-	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
 	writel(mask, sirc->base + SIRC_INT_CLEAR);
 	return;
 }
@@ -98,10 +96,11 @@ static void sirc_irq_ack(struct irq_data *d)
 static int sirc_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
-	unsigned int mask;
+	unsigned int mask = BIT(d->hwirq);
+
+	irq_set_irq_wake(d->hwirq, on);
 
 	/* Used to set the interrupt enable mask during power collapse. */
-	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
 	if (on)
 		sirc->wake_enable |= mask;
 	else
@@ -113,10 +112,9 @@ static int sirc_irq_set_wake(struct irq_data *d, unsigned int on)
 static int sirc_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
-	unsigned int mask;
+	unsigned int mask = BIT(d->hwirq);
 	unsigned int val;
 
-	mask = 1 << (d->irq - FIRST_SIRC_IRQ);
 	val = readl(sirc->base + SIRC_INT_POLARITY);
 
 	if (flow_type & (IRQF_TRIGGER_LOW | IRQF_TRIGGER_FALLING))
