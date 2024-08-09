@@ -228,7 +228,7 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 
     sirc->domain = irq_domain_add_legacy(node, NR_SIRC_IRQS,
 					       irq_base, 0,
-					       &msm_sirc_irqchip_intc_ops, NULL);
+					       &msm_sirc_irqchip_intc_ops, sirc);
 	if (!sirc->domain)
 		panic("Unable to add SIRC IRQ domain\n");
 
