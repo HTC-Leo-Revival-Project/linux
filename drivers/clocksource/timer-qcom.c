@@ -36,6 +36,7 @@ static void __iomem *sts_base;
 
 static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 {
+	pr_info("TIMER INTERRUPT");
 	struct clock_event_device *evt = dev_id;
 	/* Stop the timer tick */
 	if (clockevent_state_oneshot(evt)) {
@@ -183,6 +184,7 @@ static int __init msm_timer_init(u32 dgt_hz, int sched_bits, int irq,
 	}
 
 err:
+	pr_info("Timer init failed, using fallback method");
 	writel_relaxed(TIMER_ENABLE_EN, source_base + TIMER_ENABLE);
 	res = clocksource_register_hz(cs, dgt_hz);
 	if (res)

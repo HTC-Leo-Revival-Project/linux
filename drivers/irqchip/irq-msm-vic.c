@@ -78,17 +78,22 @@ static void msm_irq_unmask(struct irq_data *d)
 
 static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 {
-	u32 irqnr;
+	u32 irqnr =0;
+	pr_info("vic_handle_irq");
 	do {
+		pr_info("vic loop");
 		/* VIC_IRQ_VEC_RD has irq# or old irq# if the irq has been handled
 		 * VIC_IRQ_VEC_PEND_RD has irq# or -1 if none pending *but* if you 
 		 * just read VIC_IRQ_VEC_PEND_RD you never get the first irq for some reason
 		 */
+		pr_info("base irqnr: %d, VIC BASE: %px", irqnr,vic_base);
 		irqnr = readl_relaxed(vic_base + VIC_IRQ_VEC_RD);
+		pr_info("irqnr1: %d", irqnr);
 		irqnr = readl_relaxed(vic_base + VIC_IRQ_VEC_PEND_RD);
+		pr_info("irqnr2: %d", irqnr);
 		if (irqnr == -1)
 			break;
-		handle_IRQ(irqnr, regs);
+		generic_handle_domain_irq(domain, irqnr);
 	} while (1);
 }
 
@@ -110,13 +115,14 @@ static int msm_vic_map(struct irq_domain *d, unsigned int irq,
 }
 
 static const struct irq_domain_ops msm_vic_irqchip_intc_ops = {
+	.translate = irq_domain_translate_onecell,
 	.xlate = irq_domain_xlate_onetwocell,
 	.map = msm_vic_map,
 };
 
 static int __init msm_init_irq(struct device_node *node, struct device_node *parent)
 {
-	int ret;
+	int irq_base;
 
 	vic_base = of_iomap(node, 0);
 
@@ -124,10 +130,17 @@ static int __init msm_init_irq(struct device_node *node, struct device_node *par
 		panic("%pOF: unable to map local interrupt registers\n", node);
 	}
 
-	ret = irq_alloc_descs(-1, 0, 64, 0);
-	if (ret < 0) {
+	irq_base = irq_alloc_descs(-1, 0, 64, 0);
+	if (irq_base < 0) {
 		pr_warn("Couldn't allocate IRQ numbers\n");
 	}
+
+		domain = irq_domain_add_legacy(node, 64,
+					       irq_base, 0,
+					       &msm_vic_irqchip_intc_ops, NULL);
+	if (!domain)
+		panic("Unable to add VIC IRQ domain\n");
+	irq_set_default_host(domain);
 
 	/* select level interrupts */
 	writel(0, vic_base + VIC_INT_TYPE);
@@ -150,13 +163,6 @@ static int __init msm_init_irq(struct device_node *node, struct device_node *par
 
 	/* enable interrupt controller */
 	writel(3, vic_base + VIC_INT_MASTEREN);
-
-	domain = irq_domain_add_legacy(node, 64,
-					       0, 0,
-					       &msm_vic_irqchip_intc_ops, NULL);
-	if (!domain)
-		panic("Unable to add VIC IRQ domain\n");
-	irq_set_default_host(domain);
 
 	/* Ready to receive interrupts */
 	set_handle_irq(vic_handle_irq);
