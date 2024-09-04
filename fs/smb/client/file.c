@@ -80,6 +80,16 @@ retry:
 		return netfs_prepare_write_failed(subreq);
 	}
 
+	wdata->credits.rreq_debug_id = subreq->rreq->debug_id;
+	wdata->credits.rreq_debug_index = subreq->debug_index;
+	wdata->credits.in_flight_check = 1;
+	trace_smb3_rw_credits(wdata->rreq->debug_id,
+			      wdata->subreq.debug_index,
+			      wdata->credits.value,
+			      server->credits, server->in_flight,
+			      wdata->credits.value,
+			      cifs_trace_rw_credits_write_prepare);
+
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	if (server->smbd_conn)
 		subreq->max_nr_segs = server->smbd_conn->max_frmr_depth;
@@ -101,7 +111,8 @@ static void cifs_issue_write(struct netfs_io_subrequest *subreq)
 		goto fail;
 	}
 
-	rc = adjust_credits(wdata->server, &wdata->credits, wdata->subreq.len);
+	wdata->actual_len = wdata->subreq.len;
+	rc = adjust_credits(wdata->server, wdata, cifs_trace_rw_credits_issue_write_adjust);
 	if (rc)
 		goto fail;
 
@@ -123,6 +134,11 @@ fail:
 	goto out;
 }
 
+static void cifs_netfs_invalidate_cache(struct netfs_io_request *wreq)
+{
+	cifs_invalidate_cache(wreq->inode, 0);
+}
+
 /*
  * Split the read up according to how many credits we can get for each piece.
  * It's okay to sleep here if we need to wait for more credit to become
@@ -134,17 +150,15 @@ fail:
 static bool cifs_clamp_length(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
-	struct TCP_Server_Info *server;
 	struct cifs_io_subrequest *rdata = container_of(subreq, struct cifs_io_subrequest, subreq);
 	struct cifs_io_request *req = container_of(subreq->rreq, struct cifs_io_request, rreq);
+	struct TCP_Server_Info *server = req->server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(rreq->inode->i_sb);
-	size_t rsize = 0;
+	size_t rsize;
 	int rc;
 
 	rdata->xid = get_xid();
 	rdata->have_xid = true;
-
-	server = cifs_pick_channel(tlink_tcon(req->cfile->tlink)->ses);
 	rdata->server = server;
 
 	if (cifs_sb->ctx->rsize == 0)
@@ -153,14 +167,26 @@ static bool cifs_clamp_length(struct netfs_io_subrequest *subreq)
 						     cifs_sb->ctx);
 
 
-	rc = server->ops->wait_mtu_credits(server, cifs_sb->ctx->rsize, &rsize,
-					   &rdata->credits);
+	rc = server->ops->wait_mtu_credits(server, cifs_sb->ctx->rsize,
+					   &rsize, &rdata->credits);
 	if (rc) {
 		subreq->error = rc;
 		return false;
 	}
 
-	subreq->len = min_t(size_t, subreq->len, rsize);
+	rdata->credits.in_flight_check = 1;
+	rdata->credits.rreq_debug_id = rreq->debug_id;
+	rdata->credits.rreq_debug_index = subreq->debug_index;
+
+	trace_smb3_rw_credits(rdata->rreq->debug_id,
+			      rdata->subreq.debug_index,
+			      rdata->credits.value,
+			      server->credits, server->in_flight, 0,
+			      cifs_trace_rw_credits_read_submit);
+
+	subreq->len = umin(subreq->len, rsize);
+	rdata->actual_len = subreq->len;
+
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	if (server->smbd_conn)
 		subreq->max_nr_segs = server->smbd_conn->max_frmr_depth;
@@ -179,18 +205,38 @@ static void cifs_req_issue_read(struct netfs_io_subrequest *subreq)
 	struct netfs_io_request *rreq = subreq->rreq;
 	struct cifs_io_subrequest *rdata = container_of(subreq, struct cifs_io_subrequest, subreq);
 	struct cifs_io_request *req = container_of(subreq->rreq, struct cifs_io_request, rreq);
+	struct TCP_Server_Info *server = req->server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(rreq->inode->i_sb);
-	pid_t pid;
 	int rc = 0;
-
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
-		pid = req->cfile->pid;
-	else
-		pid = current->tgid; // Ummm...  This may be a workqueue
 
 	cifs_dbg(FYI, "%s: op=%08x[%x] mapping=%p len=%zu/%zu\n",
 		 __func__, rreq->debug_id, subreq->debug_index, rreq->mapping,
 		 subreq->transferred, subreq->len);
+
+	if (test_bit(NETFS_SREQ_RETRYING, &subreq->flags)) {
+		/*
+		 * As we're issuing a retry, we need to negotiate some new
+		 * credits otherwise the server may reject the op with
+		 * INVALID_PARAMETER.  Note, however, we may get back less
+		 * credit than we need to complete the op, in which case, we
+		 * shorten the op and rely on additional rounds of retry.
+		 */
+		size_t rsize = umin(subreq->len - subreq->transferred,
+				    cifs_sb->ctx->rsize);
+
+		rc = server->ops->wait_mtu_credits(server, rsize, &rdata->actual_len,
+						   &rdata->credits);
+		if (rc)
+			goto out;
+
+		rdata->credits.in_flight_check = 1;
+
+		trace_smb3_rw_credits(rdata->rreq->debug_id,
+				      rdata->subreq.debug_index,
+				      rdata->credits.value,
+				      server->credits, server->in_flight, 0,
+				      cifs_trace_rw_credits_read_resubmit);
+	}
 
 	if (req->cfile->invalidHandle) {
 		do {
@@ -200,17 +246,10 @@ static void cifs_req_issue_read(struct netfs_io_subrequest *subreq)
 			goto out;
 	}
 
-	__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
-	rdata->pid = pid;
+	if (subreq->rreq->origin != NETFS_DIO_READ)
+		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 
-	rc = adjust_credits(rdata->server, &rdata->credits, rdata->subreq.len);
-	if (!rc) {
-		if (rdata->req->cfile->invalidHandle)
-			rc = -EAGAIN;
-		else
-			rc = rdata->server->ops->async_readv(rdata);
-	}
-
+	rc = rdata->server->ops->async_readv(rdata);
 out:
 	if (rc)
 		netfs_subreq_terminated(subreq, rc, false);
@@ -245,46 +284,21 @@ static int cifs_init_request(struct netfs_io_request *rreq, struct file *file)
 
 	rreq->rsize = cifs_sb->ctx->rsize;
 	rreq->wsize = cifs_sb->ctx->wsize;
+	req->pid = current->tgid; // Ummm...  This may be a workqueue
 
 	if (file) {
 		open_file = file->private_data;
 		rreq->netfs_priv = file->private_data;
 		req->cfile = cifsFileInfo_get(open_file);
+		req->server = cifs_pick_channel(tlink_tcon(req->cfile->tlink)->ses);
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+			req->pid = req->cfile->pid;
 	} else if (rreq->origin != NETFS_WRITEBACK) {
 		WARN_ON_ONCE(1);
 		return -EIO;
 	}
 
 	return 0;
-}
-
-/*
- * Expand the size of a readahead to the size of the rsize, if at least as
- * large as a page, allowing for the possibility that rsize is not pow-2
- * aligned.
- */
-static void cifs_expand_readahead(struct netfs_io_request *rreq)
-{
-	unsigned int rsize = rreq->rsize;
-	loff_t misalignment, i_size = i_size_read(rreq->inode);
-
-	if (rsize < PAGE_SIZE)
-		return;
-
-	if (rsize < INT_MAX)
-		rsize = roundup_pow_of_two(rsize);
-	else
-		rsize = ((unsigned int)INT_MAX + 1) / 2;
-
-	misalignment = rreq->start & (rsize - 1);
-	if (misalignment) {
-		rreq->start -= misalignment;
-		rreq->len += misalignment;
-	}
-
-	rreq->len = round_up(rreq->len, rsize);
-	if (rreq->start < i_size && rreq->len > i_size - rreq->start)
-		rreq->len = i_size - rreq->start;
 }
 
 /*
@@ -331,7 +345,20 @@ static void cifs_free_subrequest(struct netfs_io_subrequest *subreq)
 #endif
 	}
 
-	add_credits_and_wake_if(rdata->server, &rdata->credits, 0);
+	if (rdata->credits.value != 0) {
+		trace_smb3_rw_credits(rdata->rreq->debug_id,
+				      rdata->subreq.debug_index,
+				      rdata->credits.value,
+				      rdata->server ? rdata->server->credits : 0,
+				      rdata->server ? rdata->server->in_flight : 0,
+				      -rdata->credits.value,
+				      cifs_trace_rw_credits_free_subreq);
+		if (rdata->server)
+			add_credits_and_wake_if(rdata->server, &rdata->credits, 0);
+		else
+			rdata->credits.value = 0;
+	}
+
 	if (rdata->have_xid)
 		free_xid(rdata->xid);
 }
@@ -342,7 +369,6 @@ const struct netfs_request_ops cifs_req_ops = {
 	.init_request		= cifs_init_request,
 	.free_request		= cifs_free_request,
 	.free_subrequest	= cifs_free_subrequest,
-	.expand_readahead	= cifs_expand_readahead,
 	.clamp_length		= cifs_clamp_length,
 	.issue_read		= cifs_req_issue_read,
 	.done			= cifs_rreq_done,
@@ -350,6 +376,7 @@ const struct netfs_request_ops cifs_req_ops = {
 	.begin_writeback	= cifs_begin_writeback,
 	.prepare_write		= cifs_prepare_write,
 	.issue_write		= cifs_issue_write,
+	.invalidate_cache	= cifs_netfs_invalidate_cache,
 };
 
 /*
@@ -2401,13 +2428,18 @@ void cifs_write_subrequest_terminated(struct cifs_io_subrequest *wdata, ssize_t 
 				      bool was_async)
 {
 	struct netfs_io_request *wreq = wdata->rreq;
-	loff_t new_server_eof;
+	struct netfs_inode *ictx = netfs_inode(wreq->inode);
+	loff_t wrend;
 
 	if (result > 0) {
-		new_server_eof = wdata->subreq.start + wdata->subreq.transferred + result;
+		wrend = wdata->subreq.start + wdata->subreq.transferred + result;
 
-		if (new_server_eof > netfs_inode(wreq->inode)->remote_i_size)
-			netfs_resize_file(netfs_inode(wreq->inode), new_server_eof, true);
+		if (wrend > ictx->zero_point &&
+		    (wdata->rreq->origin == NETFS_UNBUFFERED_WRITE ||
+		     wdata->rreq->origin == NETFS_DIO_WRITE))
+			ictx->zero_point = wrend;
+		if (wrend > ictx->remote_i_size)
+			netfs_resize_file(ictx, wrend, true);
 	}
 
 	netfs_write_subrequest_terminated(&wdata->subreq, result, was_async);
@@ -2751,6 +2783,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file->f_mapping->host;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	ssize_t rc;
 
 	rc = netfs_start_io_write(inode);
@@ -2767,12 +2800,16 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	if (rc <= 0)
 		goto out;
 
-	if (!cifs_find_lock_conflict(cfile, iocb->ki_pos, iov_iter_count(from),
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) &&
+	    (cifs_find_lock_conflict(cfile, iocb->ki_pos, iov_iter_count(from),
 				     server->vals->exclusive_lock_type, 0,
-				     NULL, CIFS_WRITE_OP))
-		rc = netfs_buffered_write_iter_locked(iocb, from, NULL);
-	else
+				     NULL, CIFS_WRITE_OP))) {
 		rc = -EACCES;
+		goto out;
+	}
+
+	rc = netfs_buffered_write_iter_locked(iocb, from, NULL);
+
 out:
 	up_read(&cinode->lock_sem);
 	netfs_end_io_write(inode);
@@ -2904,9 +2941,7 @@ cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to)
 	if (!CIFS_CACHE_READ(cinode))
 		return netfs_unbuffered_read_iter(iocb, to);
 
-	if (cap_unix(tcon->ses) &&
-	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
-	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0)) {
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0) {
 		if (iocb->ki_flags & IOCB_DIRECT)
 			return netfs_unbuffered_read_iter(iocb, to);
 		return netfs_buffered_read_iter(iocb, to);
@@ -2920,6 +2955,7 @@ cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to)
 		rc = netfs_start_io_direct(inode);
 		if (rc < 0)
 			goto out;
+		rc = -EACCES;
 		down_read(&cinode->lock_sem);
 		if (!cifs_find_lock_conflict(
 			    cfile, iocb->ki_pos, iov_iter_count(to),
@@ -2932,6 +2968,7 @@ cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to)
 		rc = netfs_start_io_read(inode);
 		if (rc < 0)
 			goto out;
+		rc = -EACCES;
 		down_read(&cinode->lock_sem);
 		if (!cifs_find_lock_conflict(
 			    cfile, iocb->ki_pos, iov_iter_count(to),
@@ -3199,8 +3236,6 @@ static void cifs_swap_deactivate(struct file *file)
 static int cifs_swap_rw(struct kiocb *iocb, struct iov_iter *iter)
 {
 	ssize_t ret;
-
-	WARN_ON_ONCE(iov_iter_count(iter) != PAGE_SIZE);
 
 	if (iov_iter_rw(iter) == READ)
 		ret = netfs_unbuffered_read_iter_locked(iocb, iter);

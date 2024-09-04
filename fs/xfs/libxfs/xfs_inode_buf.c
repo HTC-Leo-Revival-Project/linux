@@ -379,10 +379,13 @@ xfs_dinode_verify_fork(
 		/*
 		 * A directory small enough to fit in the inode must be stored
 		 * in local format.  The directory sf <-> extents conversion
-		 * code updates the directory size accordingly.
+		 * code updates the directory size accordingly.  Directories
+		 * being truncated have zero size and are not subject to this
+		 * check.
 		 */
 		if (S_ISDIR(mode)) {
-			if (be64_to_cpu(dip->di_size) <= fork_size &&
+			if (dip->di_size &&
+			    be64_to_cpu(dip->di_size) <= fork_size &&
 			    fork_format != XFS_DINODE_FMT_LOCAL)
 				return __this_address;
 		}
@@ -511,11 +514,17 @@ xfs_dinode_verify(
 			return __this_address;
 	}
 
-	if (dip->di_version > 1) {
+	/*
+	 * Historical note: xfsprogs in the 3.2 era set up its incore inodes to
+	 * have di_nlink track the link count, even if the actual filesystem
+	 * only supported V1 inodes (i.e. di_onlink).  When writing out the
+	 * ondisk inode, it would set both the ondisk di_nlink and di_onlink to
+	 * the the incore di_nlink value, which is why we cannot check for
+	 * di_nlink==0 on a V1 inode.  V2/3 inodes would get written out with
+	 * di_onlink==0, so we can check that.
+	 */
+	if (dip->di_version >= 2) {
 		if (dip->di_onlink)
-			return __this_address;
-	} else {
-		if (dip->di_nlink)
 			return __this_address;
 	}
 
@@ -528,9 +537,19 @@ xfs_dinode_verify(
 	if (mode && xfs_mode_to_ftype(mode) == XFS_DIR3_FT_UNKNOWN)
 		return __this_address;
 
-	/* No zero-length symlinks/dirs. */
-	if ((S_ISLNK(mode) || S_ISDIR(mode)) && di_size == 0)
-		return __this_address;
+	/*
+	 * No zero-length symlinks/dirs unless they're unlinked and hence being
+	 * inactivated.
+	 */
+	if ((S_ISLNK(mode) || S_ISDIR(mode)) && di_size == 0) {
+		if (dip->di_version > 1) {
+			if (dip->di_nlink)
+				return __this_address;
+		} else {
+			if (dip->di_onlink)
+				return __this_address;
+		}
+	}
 
 	fa = xfs_dinode_verify_nrext64(mp, dip);
 	if (fa)

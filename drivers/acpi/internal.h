@@ -223,6 +223,7 @@ int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 			      acpi_handle handle, acpi_ec_query_func func,
 			      void *data);
 void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
+void acpi_ec_register_opregions(struct acpi_device *adev);
 
 #ifdef CONFIG_PM_SLEEP
 void acpi_ec_flush_work(void);
@@ -302,6 +303,10 @@ void acpi_mipi_check_crs_csi2(acpi_handle handle);
 void acpi_mipi_scan_crs_csi2(void);
 void acpi_mipi_init_crs_csi2_swnodes(void);
 void acpi_mipi_crs_csi2_cleanup(void);
+#ifdef CONFIG_X86
 bool acpi_graph_ignore_port(acpi_handle handle);
+#else
+static inline bool acpi_graph_ignore_port(acpi_handle handle) { return false; }
+#endif
 
 #endif /* _ACPI_INTERNAL_H_ */

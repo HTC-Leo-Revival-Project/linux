@@ -1345,8 +1345,8 @@ cifs_async_readv(struct cifs_io_subrequest *rdata)
 	if (rc)
 		return rc;
 
-	smb->hdr.Pid = cpu_to_le16((__u16)rdata->pid);
-	smb->hdr.PidHigh = cpu_to_le16((__u16)(rdata->pid >> 16));
+	smb->hdr.Pid = cpu_to_le16((__u16)rdata->req->pid);
+	smb->hdr.PidHigh = cpu_to_le16((__u16)(rdata->req->pid >> 16));
 
 	smb->AndXCommand = 0xFF;	/* none */
 	smb->Fid = rdata->req->cfile->fid.netfid;
@@ -1689,8 +1689,8 @@ cifs_async_writev(struct cifs_io_subrequest *wdata)
 	if (rc)
 		goto async_writev_out;
 
-	smb->hdr.Pid = cpu_to_le16((__u16)wdata->pid);
-	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->pid >> 16));
+	smb->hdr.Pid = cpu_to_le16((__u16)wdata->req->pid);
+	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->req->pid >> 16));
 
 	smb->AndXCommand = 0xFF;	/* none */
 	smb->Fid = wdata->req->cfile->fid.netfid;
@@ -1713,7 +1713,6 @@ cifs_async_writev(struct cifs_io_subrequest *wdata)
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 2;
 	rqst.rq_iter = wdata->subreq.io_iter;
-	rqst.rq_iter_size = iov_iter_count(&wdata->subreq.io_iter);
 
 	cifs_dbg(FYI, "async write at %llu %zu bytes\n",
 		 wdata->subreq.start, wdata->subreq.len);

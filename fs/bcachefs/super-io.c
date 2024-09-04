@@ -414,6 +414,10 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 
 		if (!BCH_SB_VERSION_UPGRADE_COMPLETE(sb))
 			SET_BCH_SB_VERSION_UPGRADE_COMPLETE(sb, le16_to_cpu(sb->version));
+
+		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_disk_accounting_v2 &&
+		    !BCH_SB_ALLOCATOR_STUCK_TIMEOUT(sb))
+			SET_BCH_SB_ALLOCATOR_STUCK_TIMEOUT(sb, 30);
 	}
 
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
@@ -649,9 +653,10 @@ reread:
 
 	bytes = vstruct_bytes(sb->sb);
 
-	if (bytes > 512ULL << min(BCH_SB_LAYOUT_SIZE_BITS_MAX, sb->sb->layout.sb_max_size_bits)) {
-		prt_printf(err, "Invalid superblock: too big (got %zu bytes, layout max %lu)",
-		       bytes, 512UL << sb->sb->layout.sb_max_size_bits);
+	u64 sb_size = 512ULL << min(BCH_SB_LAYOUT_SIZE_BITS_MAX, sb->sb->layout.sb_max_size_bits);
+	if (bytes > sb_size) {
+		prt_printf(err, "Invalid superblock: too big (got %zu bytes, layout max %llu)",
+			   bytes, sb_size);
 		return -BCH_ERR_invalid_sb_too_big;
 	}
 
@@ -1311,7 +1316,10 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_printf(out, "Device index:\t%u\n", sb->dev_idx);
 
 	prt_printf(out, "Label:\t");
-	prt_printf(out, "%.*s", (int) sizeof(sb->label), sb->label);
+	if (!strlen(sb->label))
+		prt_printf(out, "(none)");
+	else
+		prt_printf(out, "%.*s", (int) sizeof(sb->label), sb->label);
 	prt_newline(out);
 
 	prt_printf(out, "Version:\t");
