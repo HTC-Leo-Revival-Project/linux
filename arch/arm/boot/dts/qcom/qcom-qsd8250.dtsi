@@ -37,6 +37,7 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <1843200>;
+			status = "disabled";
 		};
 	};
 
@@ -77,6 +78,7 @@
 			interrupts = <64>;
 			clocks = <&uart1_clk>;
 			clock-names = "core";
+			status = "disabled";
 		};
 
 		timer@ac100000 {
