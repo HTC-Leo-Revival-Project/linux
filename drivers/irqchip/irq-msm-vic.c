@@ -44,8 +44,6 @@ static int msm_irq_debug_mask;
 module_param_named(debug_mask, msm_irq_debug_mask, int,
 		   S_IRUGO | S_IWUSR | S_IWGRP);
 
-void __iomem	*vic_base = NULL;
-
 #define VIC_INT_TO_REG_ADDR(base, irq) (base + ((irq & 32) ? 4 : 0))
 #define VIC_INT_TO_REG_INDEX(irq) ((irq >> 5) & 1)
 
@@ -156,6 +154,12 @@ static struct {
 } msm_irq_shadow_reg[VIC_NUM_REGS];
 static uint32_t msm_irq_idle_disable[VIC_NUM_REGS];
 
+struct vic_device {
+	void __iomem *base;
+	struct irq_domain *domain;
+};
+static struct vic_device vic_data;
+
 #define SMSM_FAKE_IRQ (0xff)
 static uint8_t msm_irq_to_smsm[NR_IRQS] = {
 	[INT_MDDI_EXT] = 1,
@@ -231,13 +235,13 @@ static inline void msm_irq_write_all_regs(void __iomem *base, unsigned int val)
 
 static void msm_irq_ack(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_CLEAR0, d->irq);
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_CLEAR0, d->irq);
 	writel(1 << (d->irq & 31), reg);
 }
 
 static void msm_irq_mask(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_ENCLEAR0, d->irq);
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_ENCLEAR0, d->irq);
 	unsigned index = VIC_INT_TO_REG_INDEX(d->irq);
 	uint32_t mask = 1UL << (d->irq & 31);
 	int smsm_irq = msm_irq_to_smsm[d->irq];
@@ -254,7 +258,7 @@ static void msm_irq_mask(struct irq_data *d)
 
 static void msm_irq_unmask(struct irq_data *d)
 {
-	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_ENSET0, d->irq);
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_ENSET0, d->irq);
 	unsigned index = VIC_INT_TO_REG_INDEX(d->irq);
 	uint32_t mask = 1UL << (d->irq & 31);
 	int smsm_irq = msm_irq_to_smsm[d->irq];
@@ -298,8 +302,8 @@ static int msm_irq_set_wake(struct irq_data *d, unsigned int on)
 
 static int msm_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	void __iomem *treg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_TYPE0, d->irq);
-	void __iomem *preg = VIC_INT_TO_REG_ADDR(vic_base + VIC_INT_POLARITY0, d->irq);
+	void __iomem *treg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_TYPE0, d->irq);
+	void __iomem *preg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_POLARITY0, d->irq);
 	unsigned index = VIC_INT_TO_REG_INDEX(d->irq);
 	int b = 1 << (d->irq & 31);
 	uint32_t polarity;
@@ -350,7 +354,7 @@ static inline void msm_vic_handle_irq(void __iomem *base_addr, struct pt_regs
 static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 {
 	local_cpsie_enable();// local_abt_enable()?
-	msm_vic_handle_irq(vic_base, regs);
+	msm_vic_handle_irq(vic_data.base, regs);
 }
 
 static struct irq_chip msm_irq_chip = {
@@ -365,39 +369,57 @@ static struct irq_chip msm_irq_chip = {
 
 static int __init msm_init_irq(struct device_node *intc, struct device_node *parent)
 {
-	unsigned n;
+	int ret;
+	void __iomem *regs;
+	uint32_t num_irqs;
+	int i;
+	regs = of_iomap(intc, 0);
+	if (WARN_ON(!regs))
+		return -EIO;
+	vic_data.base = regs;
+	ret = of_property_read_u32(intc, "num-irqs", &num_irqs);
+	if (ret) {
+		pr_err("%s: failed to read num-irqs ret=%d\n", __func__, ret);
+		return ret;
+	}
 
-	vic_base = of_iomap(intc, 0);
-
-	if (!vic_base){
-		panic("%pOF: unable to map local interrupt registers\n", intc);
+	ret = irq_alloc_descs(-1, 0, 64, 0);
+	if (ret < 0) {
+		pr_warn("Couldn't allocate IRQ numbers\n");
 	}
 
 	/* select level interrupts */
-	msm_irq_write_all_regs(vic_base + VIC_INT_TYPE0, 0);
+	msm_irq_write_all_regs(vic_data.base + VIC_INT_TYPE0, 0);
 
 	/* select highlevel interrupts */
-	msm_irq_write_all_regs(vic_base + VIC_INT_POLARITY0, 0);
+	msm_irq_write_all_regs(vic_data.base + VIC_INT_POLARITY0, 0);
 
 	/* select IRQ for all INTs */
-	msm_irq_write_all_regs(vic_base + VIC_INT_SELECT0, 0);
+	msm_irq_write_all_regs(vic_data.base + VIC_INT_SELECT0, 0);
 
 	/* disable all INTs */
-	msm_irq_write_all_regs(vic_base + VIC_INT_EN0, 0);
+	msm_irq_write_all_regs(vic_data.base + VIC_INT_EN0, 0);
 
 	/* don't use vic */
-	writel(0, vic_base + VIC_CONFIG);
+	writel(0, vic_data.base + VIC_CONFIG);
 
 	/* enable interrupt controller */
-	writel(3, vic_base + VIC_INT_MASTEREN);
+	writel(3, vic_data.base + VIC_INT_MASTEREN);
 
-	for (n = 0; n < NR_MSM_IRQS; n++) {
+	for (int n = 0; n < NR_MSM_IRQS; n++) {
 		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);
 		set_irq_flags(n, IRQF_VALID);
 	}
 
 	/* Ready to receive interrupts */
 	set_handle_irq(vic_handle_irq);
+
+
+	vic_data.domain = irq_domain_add_legacy(intc, num_irqs, 0, 0, &irq_domain_simple_ops, &vic_data);
+	if (!vic_data.domain) {
+		pr_err("%s: failed to register irq domain\n", __func__);
+	}
+
 
 	return 0;
 }
