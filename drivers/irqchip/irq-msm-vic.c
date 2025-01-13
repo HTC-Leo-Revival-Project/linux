@@ -31,7 +31,7 @@
 #include <asm/exception.h>
 #include <asm/irq.h>
 
-#include "irqs-qsd8k.h"
+#include <linux/mach-msm/irqs-qsd8k.h>
 
 enum {
 	IRQ_DEBUG_SLEEP_INT_TRIGGER = 1U << 0,
