@@ -263,6 +263,17 @@ enum {
 
 void msm_proc_comm_reset_modem_now(void);
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
+int pcom_gpio_tlmm_config(unsigned config, unsigned disable);
+int pcom_vreg_set_level(unsigned id, unsigned mv);
+int pcom_vreg_enable(unsigned id);
+int pcom_vreg_disable(unsigned id);
+int pcom_clock_enable(unsigned id);
+int pcom_clock_disable(unsigned id);
+int pcom_clock_is_enabled(unsigned id);
+int pcom_clock_set_rate(unsigned id, unsigned rate);
+int pcom_clock_get_rate(unsigned id);
+int pcom_set_clock_flags(unsigned id, unsigned flags);
+
 
 
 #define LK_BOOTREASON_ADDR 		0x2FFB0000

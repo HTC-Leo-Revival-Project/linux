@@ -162,6 +162,77 @@ end:
 }
 EXPORT_SYMBOL(msm_proc_comm);
 
+
+int pcom_gpio_tlmm_config(unsigned config, unsigned disable)
+{
+	return msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, &disable);
+}
+
+EXPORT_SYMBOL(pcom_gpio_tlmm_config);
+
+int pcom_vreg_set_level(unsigned id, unsigned mv)
+{
+	return msm_proc_comm(PCOM_VREG_SET_LEVEL, &id, &mv);
+}
+EXPORT_SYMBOL(pcom_vreg_set_level);
+
+int pcom_vreg_enable(unsigned id)
+{
+	unsigned int enable = 1;
+	return msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
+}
+EXPORT_SYMBOL(pcom_vreg_enable);
+
+int pcom_vreg_disable(unsigned id)
+{
+	unsigned int enable = 0;
+	return msm_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
+}
+EXPORT_SYMBOL(pcom_vreg_disable);
+
+int pcom_clock_enable(unsigned id)
+{
+	return msm_proc_comm(PCOM_CLKCTL_RPC_ENABLE, &id, 0);
+}
+EXPORT_SYMBOL(pcom_clock_enable);
+
+int pcom_clock_disable(unsigned id)
+{
+	return msm_proc_comm(PCOM_CLKCTL_RPC_DISABLE, &id, 0);
+}
+EXPORT_SYMBOL(pcom_clock_disable);
+
+int pcom_clock_is_enabled(unsigned id)
+{
+	return msm_proc_comm(PCOM_CLKCTL_RPC_ENABLED, &id, 0);
+}
+EXPORT_SYMBOL(pcom_clock_is_enabled);
+
+int pcom_clock_set_rate(unsigned id, unsigned rate)
+{
+	return msm_proc_comm(PCOM_CLKCTL_RPC_SET_RATE, &id, &rate);
+}
+EXPORT_SYMBOL(pcom_clock_set_rate);
+
+int pcom_clock_get_rate(unsigned id)
+{
+	if (msm_proc_comm(PCOM_CLKCTL_RPC_RATE, &id, 0)) {
+		return -1;
+	} else {
+		return (int)id;
+	}
+}
+EXPORT_SYMBOL(pcom_clock_get_rate);
+
+
+int pcom_set_clock_flags(unsigned id, unsigned flags)
+{
+	return msm_proc_comm(PCOM_CLKCTL_RPC_SET_FLAGS, &id, &flags);
+}
+EXPORT_SYMBOL(pcom_set_clock_flags);
+
+
+
 static int msm_proc_comm_probe(struct platform_device *pdev)
 {
     struct resource *res;
