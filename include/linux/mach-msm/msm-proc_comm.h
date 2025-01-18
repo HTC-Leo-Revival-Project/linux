@@ -15,7 +15,7 @@
 
 #ifndef _ARCH_ARM_MACH_MSM_MSM_PROC_COMM_H_
 #define _ARCH_ARM_MACH_MSM_MSM_PROC_COMM_H_
-
+#include "gpio.h"
 enum {
 	PCOM_CMD_IDLE = 0x0,
 	PCOM_CMD_DONE,
@@ -150,24 +150,6 @@ enum {
 	PCOM_OEM_LAST = PCOM_OEM_TEST_CMD,
 };
 
-enum {
-	PCOM_INVALID_STATUS = 0x0,
-	PCOM_READY,
-	PCOM_CMD_RUNNING,
-	PCOM_CMD_SUCCESS,
-	PCOM_CMD_FAIL,
-	PCOM_CMD_FAIL_FALSE_RETURNED,
-	PCOM_CMD_FAIL_CMD_OUT_OF_BOUNDS_SERVER,
-	PCOM_CMD_FAIL_CMD_OUT_OF_BOUNDS_CLIENT,
-	PCOM_CMD_FAIL_CMD_UNREGISTERED,
-	PCOM_CMD_FAIL_CMD_LOCKED,
-	PCOM_CMD_FAIL_SERVER_NOT_YET_READY,
-	PCOM_CMD_FAIL_BAD_DESTINATION,
-	PCOM_CMD_FAIL_SERVER_RESET,
-	PCOM_CMD_FAIL_SMSM_NOT_INIT,
-	PCOM_CMD_FAIL_PROC_COMM_BUSY,
-	PCOM_CMD_FAIL_PROC_COMM_NOT_INIT,
-};
 
 /* List of VREGs that support the Pull Down Resistor setting. */
 enum vreg_pdown_id {
@@ -273,7 +255,29 @@ int pcom_clock_is_enabled(unsigned id);
 int pcom_clock_set_rate(unsigned id, unsigned rate);
 int pcom_clock_get_rate(unsigned id);
 int pcom_set_clock_flags(unsigned id, unsigned flags);
-
+void pcom_vreg_control(unsigned vreg, unsigned level, unsigned state);
+void pcom_sdcard_power(int state);
+void pcom_sdcard_gpio_config(int instance);
+void pcom_usb_vbus_power(int state);
+void pcom_usb_reset_phy(void);
+void pcom_enable_hsusb_clk(void);
+void pcom_disable_hsusb_clk(void);
+void pcom_set_sdcard_clk_flags(int instance, int flags);
+void pcom_set_sdcard_clk(int instance, int rate);
+uint32_t pcom_get_sdcard_clk(int instance);
+void pcom_enable_sdcard_clk(int instance);
+void pcom_disable_sdcard_clk(int instance);
+void pcom_enable_sdcard_pclk(int instance);
+void pcom_disable_sdcard_pclk(int instance);
+uint32_t pcom_is_sdcard_clk_enabled(int instance);
+uint32_t pcom_is_sdcard_pclk_enabled(int instance);
+uint32_t pcom_is_uart_clk_enabled(int instance);
+uint32_t pcom_get_uart_clk(int uart_base_addr);
+void pcom_set_lcdc_clk(int rate);
+void pcom_enable_lcdc_pad_clk(void);
+void pcom_enable_lcdc_clk(void);
+uint32_t pcom_get_lcdc_clk(void);
+void pcom_end_cmds(void);
 
 
 #define LK_BOOTREASON_ADDR 		0x2FFB0000
@@ -295,6 +299,182 @@ int pcom_set_clock_flags(unsigned id, unsigned flags);
 
 #define MARK_BUTTON		0x42555454 //Power button
 #define MARK_RESET	 	0x52455354 //Reset
+
+#define PCOM_ENABLE 	1
+#define PCOM_DISABLE 	0
+
+#define MSM_A2M_INT(n) (MSM_CSR_BASE + 0x400 + (n) * 4)
+
+/*proc_comm status */
+enum {
+	PCOM_INVALID_STATUS = 0x0,
+	PCOM_READY,
+	PCOM_CMD_RUNNING,
+	PCOM_CMD_SUCCESS,
+	PCOM_CMD_FAIL,
+	PCOM_CMD_FAIL_FALSE_RETURNED,
+	PCOM_CMD_FAIL_CMD_OUT_OF_BOUNDS_SERVER,
+	PCOM_CMD_FAIL_CMD_OUT_OF_BOUNDS_CLIENT,
+	PCOM_CMD_FAIL_CMD_UNREGISTERED,
+	PCOM_CMD_FAIL_CMD_LOCKED,
+	PCOM_CMD_FAIL_SERVER_NOT_YET_READY,
+	PCOM_CMD_FAIL_BAD_DESTINATION,
+	PCOM_CMD_FAIL_SERVER_RESET,
+	PCOM_CMD_FAIL_SMSM_NOT_INIT,
+	PCOM_CMD_FAIL_PROC_COMM_BUSY,
+	PCOM_CMD_FAIL_PROC_COMM_NOT_INIT,
+};
+
+/* ---- PROC_COMM_PM_MPP_CONFIG command related ----*/
+/* MPP pins available */
+enum
+{
+	PM_MPP_1,
+	PM_MPP_2,
+	PM_MPP_3,
+	PM_MPP_4,
+	PM_MPP_5,
+	PM_MPP_6,
+	PM_MPP_7,
+	PM_MPP_8,
+	PM_MPP_9,
+	PM_MPP_10,
+	PM_MPP_11,
+	PM_MPP_12,
+	PM_MPP_13,
+	PM_MPP_14,
+	PM_MPP_15,
+	PM_MPP_16,
+	PM_MPP_17,
+	PM_MPP_18,
+	PM_MPP_19,
+	PM_MPP_20,
+	PM_MPP_21,
+	PM_MPP_22,
+	PM_MPP_INVALID,
+	PM_NUM_MPP_HAN = PM_MPP_4 + 1, 		/* Max num of MPP's for PM7500 */
+	PM_NUM_MPP_PM7500 = PM_MPP_22 + 1, 	/* Max num of MPP's for PM6650 */
+	PM_NUM_MPP_PM6650 = PM_MPP_12 + 1,	/* Max num of MPP's for PANORAMIX and PM6640 */
+	PM_NUM_MPP_PANORAMIX = PM_MPP_2 + 1,
+	PM_NUM_MPP_PM6640 = PM_NUM_MPP_PANORAMIX,
+	PM_NUM_MPP_PM6620 = PM_NUM_MPP_PANORAMIX
+};
+
+/* MPP Logic Level */
+enum
+{
+	PM_MPP__DLOGIC__LVL_MSME,
+	PM_MPP__DLOGIC__LVL_MSMP,
+	PM_MPP__DLOGIC__LVL_RUIM,
+	PM_MPP__DLOGIC__LVL_MMC,
+	PM_MPP__DLOGIC__LVL_VDD,
+	PM_MPP__DLOGIC__LVL_INVALID
+};
+
+/* MPP Output control */
+enum
+{
+
+	PM_MPP__DLOGIC_OUT__CTRL_LOW, 	/* MPP OUTPUT= LOGIC LOW */
+	PM_MPP__DLOGIC_OUT__CTRL_HIGH, 	/* MPP OUTPUT= LOGIC HIGH */
+	PM_MPP__DLOGIC_OUT__CTRL_MPP, 	/* MPP OUTPUT= CORRESPONDING MPP INPUT */
+	PM_MPP__DLOGIC_OUT__CTRL_NOT_MPP, /* MPP OUTPUT= CORRESPONDING INVERTED MPP INPUT*/
+	PM_MPP__DLOGIC_OUT__CTRL_INVALID,
+};
+
+/* GPIO TLMM: Direction */
+enum {
+	PCOM_GPIO_CFG_INPUT,
+	PCOM_GPIO_CFG_OUTPUT,
+};
+
+/* GPIO TLMM: Pullup/Pulldown */
+enum {
+	PCOM_GPIO_CFG_NO_PULL,
+	PCOM_GPIO_CFG_PULL_DOWN,
+	PCOM_GPIO_CFG_KEEPER,
+	PCOM_GPIO_CFG_PULL_UP,
+};
+
+/* GPIO TLMM: Drive Strength */
+enum {
+	PCOM_GPIO_CFG_2MA,
+	PCOM_GPIO_CFG_4MA,
+	PCOM_GPIO_CFG_6MA,
+	PCOM_GPIO_CFG_8MA,
+	PCOM_GPIO_CFG_10MA,
+	PCOM_GPIO_CFG_12MA,
+	PCOM_GPIO_CFG_14MA,
+	PCOM_GPIO_CFG_16MA,
+};
+
+enum {
+	PCOM_GPIO_CFG_ENABLE,
+	PCOM_GPIO_CFG_DISABLE,
+};
+
+enum {
+	PCOM_GPIO_OWNER_BASEBAND,
+	PCOM_GPIO_OWNER_ARM11,
+};
+
+/*---- Clk control related ----*/
+enum
+{
+	PCOM_ACPU_CLK,	  	/* Applications processor clock */
+	PCOM_ADM_CLK,	  	/* Applications data mover clock */
+	PCOM_ADSP_CLK,	  	/* ADSP clock */
+	PCOM_EBI1_CLK,	  	/* External bus interface 1 clock */
+	PCOM_EBI2_CLK,	  	/* External bus interface 2 clock */
+	PCOM_ECODEC_CLK,	/* External CODEC clock */
+	PCOM_EMDH_CLK,	  	/* External MDDI host clock */
+	PCOM_GP_CLK,	  	/* General purpose clock */
+	PCOM_GRP_CLK,	  	/* Graphics clock */
+	PCOM_I2C_CLK,	  	/* I2C clock */
+	PCOM_ICODEC_RX_CLK, /* Internal CODEX RX clock */
+	PCOM_ICODEC_TX_CLK, /* Internal CODEX TX clock */
+	PCOM_IMEM_CLK,	  	/* Internal graphics memory clock */
+	PCOM_MDC_CLK,	 	/* MDDI client clock */
+	PCOM_MDP_CLK,	  	/* Mobile display processor clock */
+	PCOM_PBUS_CLK,	  	/* Peripheral bus clock */
+	PCOM_PCM_CLK,	  	/* PCM clock */
+	PCOM_PMDH_CLK,	  	/* Primary MDDI host clock */
+	PCOM_SDAC_CLK,	  	/* Stereo DAC clock */
+	PCOM_SDC1_CLK,	  	/* Secure Digital Card clocks */
+	PCOM_SDC1_PCLK,
+	PCOM_SDC2_CLK,
+	PCOM_SDC2_PCLK,
+	PCOM_SDC3_CLK,
+	PCOM_SDC3_PCLK,
+	PCOM_SDC4_CLK,
+	PCOM_SDC4_PCLK,
+	PCOM_TSIF_CLK,	  	/* Transport Stream Interface clocks */
+	PCOM_TSIF_REF_CLK,
+	PCOM_TV_DAC_CLK,	/* TV clocks */
+	PCOM_TV_ENC_CLK,
+	PCOM_UART1_CLK,	  	/* UART clocks */
+	PCOM_UART2_CLK,
+	PCOM_UART3_CLK,
+	PCOM_UART1DM_CLK,
+	PCOM_UART2DM_CLK,
+	PCOM_USB_HS_CLK,	/* High speed USB core clock */
+	PCOM_USB_HS_PCLK,	/* High speed USB pbus clock */
+	PCOM_USB_OTG_CLK,	/* Full speed USB clock */
+	PCOM_VDC_CLK,	  	/* Video controller clock */
+	PCOM_VFE_MDC_CLK,	/* Camera / Video Front End clock */
+	PCOM_VFE_CLK,	  	/* VFE MDDI client clock */
+	PCOM_MDP_LCDC_PCLK_CLK,
+	PCOM_MDP_LCDC_PAD_PCLK_CLK,
+	PCOM_MDP_VSYNC_CLK,
+	PCOM_SPI_CLK,
+	PCOM_VFE_AXI_CLK,
+	PCOM_USB_HS2_CLK,	/* High speed USB 2 core clock */
+	PCOM_USB_HS2_PCLK,	/* High speed USB 2 pbus clock */
+	PCOM_USB_HS3_CLK,	/* High speed USB 3 core clock */
+	PCOM_USB_HS3_PCLK,	/* High speed USB 3 pbus clock */
+	PCOM_GRP_PCLK,	  	/* Graphics pbus clock */
+	PCOM_NR_CLKS,
+};
 
 
 #endif

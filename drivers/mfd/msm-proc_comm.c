@@ -38,6 +38,10 @@
 #define MDM_DATA1   0x18
 #define MDM_DATA2   0x1C
 
+#define PCOM_VREG_SDC PM_VREG_PDOWN_GP6_ID //?
+#define PCOM_MPP_FOR_USB_VBUS PM_MPP_16 //?
+#define PROC_COMM_END_CMDS 0xFFFF 
+
 static DEFINE_SPINLOCK(proc_comm_lock);
 static int msm_proc_comm_disable;
 
@@ -231,7 +235,232 @@ int pcom_set_clock_flags(unsigned id, unsigned flags)
 }
 EXPORT_SYMBOL(pcom_set_clock_flags);
 
+void pcom_vreg_control(unsigned vreg, unsigned level, unsigned state)
+{
+    unsigned s = (state ? PCOM_ENABLE : PCOM_DISABLE);
 
+	/* If turning it ON, set the level first. */
+    if(state)
+    {
+		do
+        {
+            msm_proc_comm(PCOM_VREG_SET_LEVEL, &vreg, &level);
+		}while(PCOM_CMD_SUCCESS != readl(APP_STATUS));
+    }
+	
+	do
+    {
+        msm_proc_comm(PCOM_VREG_SWITCH, &vreg, &s);
+    }while(PCOM_CMD_SUCCESS != readl(APP_STATUS));
+}
+EXPORT_SYMBOL(pcom_vreg_control);
+
+void pcom_sdcard_power(int state)
+{
+    unsigned v = PCOM_VREG_SDC;
+	unsigned s = (state ? PCOM_ENABLE : PCOM_DISABLE);
+
+	while(1)
+	{
+		msm_proc_comm(PCOM_VREG_SWITCH, &v, &s);
+
+        if(PCOM_CMD_SUCCESS != readl(APP_STATUS)) {
+			printk(KERN_INFO "Error: PCOM_VREG_SWITCH failed...retrying\n");
+		} else {
+			printk(KERN_INFO "PCOM_VREG_SWITCH DONE\n");
+			break;
+		}
+    }
+}
+EXPORT_SYMBOL(pcom_sdcard_power);
+
+void pcom_sdcard_gpio_config(int instance)
+{
+	switch (instance) {
+		case 1:
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(51, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_16MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(52, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_16MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(53, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_16MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(54, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_16MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(55, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_16MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(56, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_NO_PULL, MSM_GPIO_CFG_16MA), MSM_GPIO_CFG_ENABLE);
+			break;
+
+		case 2:
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(62, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_NO_PULL, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(63, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(64, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(65, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(66, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(67, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			break;
+
+		case 3:
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(88, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_NO_PULL, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(89, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(90, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(91, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(92, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(93, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(158, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(159, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(160, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(161, 1, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			break;
+
+		case 4:
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(142, 3, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_NO_PULL, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(143, 3, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(144, 2, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(145, 2, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(146, 3, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			pcom_gpio_tlmm_config(MSM_GPIO_CFG(147, 3, MSM_GPIO_CFG_OUTPUT, MSM_GPIO_CFG_PULL_UP, MSM_GPIO_CFG_8MA), MSM_GPIO_CFG_ENABLE);
+			break;
+    }
+}
+EXPORT_SYMBOL(pcom_sdcard_gpio_config);
+
+void pcom_usb_vbus_power(int state)
+{
+    unsigned v = PCOM_MPP_FOR_USB_VBUS;
+	unsigned s = (PM_MPP__DLOGIC__LVL_VDD << 16) | (state ? PM_MPP__DLOGIC_OUT__CTRL_HIGH : PM_MPP__DLOGIC_OUT__CTRL_LOW);
+
+	msm_proc_comm(PCOM_PM_MPP_CONFIG, &v, &s);
+
+    if(PCOM_CMD_SUCCESS != readl(APP_STATUS)) {
+        printk(KERN_INFO "Error: PCOM_MPP_CONFIG failed... not retrying\n");
+    } else {
+        printk(KERN_INFO "PCOM_MPP_CONFIG DONE\n");
+    }
+}
+EXPORT_SYMBOL(pcom_usb_vbus_power);
+
+void pcom_usb_reset_phy(void)
+{
+	while(1)
+	{
+        msm_proc_comm(PCOM_MSM_HSUSB_PHY_RESET, 0, 0);
+
+        if(PCOM_CMD_SUCCESS != readl(APP_STATUS)) {
+            printk(KERN_INFO "Error: PCOM_MSM_HSUSB_PHY_RESET failed...not retrying\n");
+			break; // remove to retry
+        } else {
+            printk(KERN_INFO "PCOM_MSM_HSUSB_PHY_RESET DONE\n");
+            break;
+        }
+    }
+}
+EXPORT_SYMBOL(pcom_usb_reset_phy);
+
+void pcom_enable_hsusb_clk(void)
+{
+    pcom_clock_enable(PCOM_USB_HS_CLK);
+}
+EXPORT_SYMBOL(pcom_enable_hsusb_clk);
+
+void pcom_disable_hsusb_clk(void)
+{
+    pcom_clock_disable(PCOM_USB_HS_CLK);
+}
+EXPORT_SYMBOL(pcom_disable_hsusb_clk);
+
+// ---- SD card related proc_comm clients
+void pcom_set_sdcard_clk_flags(int instance, int flags)
+{
+	switch(instance){
+		case 1:
+			pcom_set_clock_flags(PCOM_SDC1_CLK, flags);
+			break;
+		case 2:
+			pcom_set_clock_flags(PCOM_SDC2_CLK, flags);
+			break;
+		case 3:
+			pcom_set_clock_flags(PCOM_SDC3_CLK, flags);
+			break;
+		case 4:
+			pcom_set_clock_flags(PCOM_SDC4_CLK, flags);
+			break;
+	}
+}
+EXPORT_SYMBOL(pcom_set_sdcard_clk_flags);
+
+void pcom_set_sdcard_clk(int instance, int rate)
+{
+	switch(instance){
+		case 1:
+			pcom_clock_set_rate(PCOM_SDC1_CLK, rate);
+			break;
+		case 2:
+			pcom_clock_set_rate(PCOM_SDC2_CLK, rate);
+			break;
+		case 3:
+			pcom_clock_set_rate(PCOM_SDC3_CLK, rate);
+			break;
+		case 4:
+			pcom_clock_set_rate(PCOM_SDC4_CLK, rate);
+			break;
+	}
+}
+EXPORT_SYMBOL(pcom_set_sdcard_clk);
+
+uint32_t pcom_get_sdcard_clk(int instance)
+{
+	uint32_t rate = 0;
+	switch(instance){
+		case 1:
+			rate = pcom_clock_get_rate(PCOM_SDC1_CLK);
+			break;
+		case 2:
+			rate = pcom_clock_get_rate(PCOM_SDC2_CLK);
+			break;
+		case 3:
+			rate = pcom_clock_get_rate(PCOM_SDC3_CLK);
+			break;
+		case 4:
+			rate = pcom_clock_get_rate(PCOM_SDC4_CLK);
+			break;
+	}
+	return rate;
+}
+EXPORT_SYMBOL(pcom_get_sdcard_clk);
+
+void pcom_enable_sdcard_clk(int instance)
+{
+	switch(instance){
+		case 1:
+			pcom_clock_enable(PCOM_SDC1_CLK);
+			break;
+		case 2:
+			pcom_clock_enable(PCOM_SDC2_CLK);
+			break;
+		case 3:
+			pcom_clock_enable(PCOM_SDC3_CLK);
+			break;
+		case 4:
+			pcom_clock_enable(PCOM_SDC4_CLK);
+			break;
+	}
+}
+EXPORT_SYMBOL(pcom_enable_sdcard_clk);
+
+void pcom_disable_sdcard_clk(int instance)
+{
+	switch(instance){
+		case 1:
+			pcom_clock_disable(PCOM_SDC1_CLK);
+			break;
+		case 2:
+			pcom_clock_disable(PCOM_SDC2_CLK);
+			break;
+		case 3:
+			pcom_clock_disable(PCOM_SDC3_CLK);
+			break;
+		case 4:
+			pcom_clock_disable(PCOM_SDC4_CLK);
+			break;
+	}
+}
+EXPORT_SYMBOL(pcom_disable_sdcard_clk);
 
 static int msm_proc_comm_probe(struct platform_device *pdev)
 {
