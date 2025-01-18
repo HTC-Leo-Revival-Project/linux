@@ -69,12 +69,23 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0xac000000 0x1000>;
+			num-irqs = <64>;
+		};
+		
+		sirc: interrupt-controller@ac200000 {
+			compatible = "arm,msm-sirc";
+			reg = <0xac200000 0x1000>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&intc>;
+			interrupts = <9>;
 		};
 
 		blsp1_uart1: serial@a9a00000 {
 			compatible = "qcom,msm-uart";
 			reg = <0xa9a00000 0x1000>;
-			interrupts = <64>;
+			interrupt-parent = <&sirc>;
+			interrupts = <0>;
 			clocks = <&uart1_clk>;
 			clock-names = "core";
 		};
@@ -86,11 +97,24 @@
 			clock-frequency = <19200000>;
 		};
 
+		msm_proc_comm@ac100000 {
+    	compatible = "qcom,msm-proc-comm";
+    	reg = <0x00100000 0x00100000>, /* shared-ram-base */
+          	  <0xac100000 0x100>; /* csr-base */
+    	reg-names = "shared-ram-base", "csr-base";
+		};
+
+		restart {
+		compatible = "qcom,pshold";
+		status = "okay";
+		};
+
 		gpio1: gpio@0xA9000000 {
 			compatible = "msm,qsd8k-gpio";
 			reg = <0xA9000000 0x00100000>,
 	      		  <0xA9100000 0x00100000>;
-			interrupts = <73 74>;
+			interrupt-parent = <&sirc>;
+			interrupts = <9 10>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
