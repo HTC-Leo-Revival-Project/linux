@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, HTC Leo Revival Project. All rights reserved.
+ */
+
+#include "qcom-qsd8250.dtsi"
+
+/ {
+	model = "HTC HD2";
+	compatible = "htc,leo", "qcom,qsd8250";
+	chassis-type = "handset";
+
+	chosen {
+		/* Use efifb for video output, rodata=off is needed
+		 * as the kernel doesn't boot with kernel memory 
+		 * protection enabled
+		 */
+        bootargs = "video=efifb rodata=off";
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		appsbl: reserved@0 {
+			reg = <0x00000000 0x00100000>;
+			no-map;
+		};
+
+		smem_mem: memory@100000 {
+			reg = <0x00100000 0x00100000>;
+			no-map;
+		};
+
+		uefi_mem: memory@2c000000 {
+			reg = <0x2c000000 0x00100000>;
+			no-map;
+		};
+
+		display_reserved: framebuffer@2a00000 {
+			reg = <0x2a00000 0x000c0000>;
+			no-map;
+		};
+	};
+};

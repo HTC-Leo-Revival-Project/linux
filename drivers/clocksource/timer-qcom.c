@@ -209,7 +209,12 @@ static int __init msm_dt_timer_init(struct device_node *np)
 	}
 
 	/* We use GPT0 for the clockevent */
-	irq = irq_of_parse_and_map(np, 1);
+	if (of_machine_is_compatible("qcom,qsd8250")) {
+		irq = irq_of_parse_and_map(np, 0);
+	}
+	else {
+		irq = irq_of_parse_and_map(np, 1);
+	}
 	if (irq <= 0) {
 		pr_err("Can't get irq\n");
 		return -EINVAL;
@@ -237,9 +242,17 @@ static int __init msm_dt_timer_init(struct device_node *np)
 		return -EINVAL;
 	}
 
-	event_base = base + 0x4;
-	sts_base = base + 0x88;
-	source_base = cpu0_base + 0x24;
+	if (of_machine_is_compatible("qcom,qsd8250")) {
+		/* qsd8250 uses different offsets */
+		event_base = base;
+		source_base = base + 0x10;
+		sts_base = base + 0x34;
+	}
+	else {
+		event_base = base + 0x4;
+		sts_base = base + 0x88;
+		source_base = cpu0_base + 0x24;
+	}
 	freq /= 4;
 	writel_relaxed(DGT_CLK_CTL_DIV_4, source_base + DGT_CLK_CTL);
 
@@ -251,3 +264,4 @@ static int __init msm_dt_timer_init(struct device_node *np)
 }
 TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
 TIMER_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
+TIMER_OF_DECLARE(qsd8x50_timer, "qcom,qsd8x50-timer", msm_dt_timer_init);
