@@ -6,6 +6,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/clock/qcom,gcc-qsd8250.h>
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -21,10 +23,12 @@
 	};
 
 	clocks {
-		xo_board: xo_board {
+		/* tcxo_board: xo_board */
+		tcxo_board: tcxo-board-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
+			clock-output-names = "tcxo_board";
 		};
 
 		sleep_clk: sleep_clk {
@@ -69,6 +73,15 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0xac000000 0x1000>;
+		};
+
+		gcc: clock-controller@a8600000 {
+			compatible = "qcom,gcc-qsd8250";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			reg = <0xa8600000 0x4000>;
+			clocks = <&tcxo_board>;
+			clock-names = "tcxo";
 		};
 
 		blsp1_uart1: serial@a9a00000 {
