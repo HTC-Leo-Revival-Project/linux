@@ -15,34 +15,31 @@
 #include <linux/pm.h>
 #include <linux/mach-msm/msm-proc_comm.h>
 
-// Define pdev_global as a global pointer
+
 static struct platform_device *pdev_global = NULL;
 
 static int do_msm_poweroff(struct sys_off_data *data)
 {
-    dev_info(&pdev_global->dev, "MSM poweroff received shutdown request\n");
     msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 
-    // Enter an infinite loop to simulate poweroff
+
     for (;;);
 
-    return NOTIFY_DONE; // Technically unreachable
+    return NOTIFY_DONE;
 }
 
 static int do_msm_restart(struct sys_off_data *data)
 {
-    dev_info(&pdev_global->dev, "MSM restart received shutdown request\n");
     msm_proc_comm(PCOM_RESET_CHIP, 0, 0);
 
-    // Enter an infinite loop to simulate restart
     for (;;);
 
-    return NOTIFY_DONE; // Technically unreachable
+    return NOTIFY_DONE;
 }
 
 static int msm_restart_probe(struct platform_device *pdev)
 {
-    pdev_global = pdev; // Initialize the global variable
+    pdev_global = pdev;
 
     devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_RESTART,
                                   128, do_msm_restart, NULL);
@@ -51,7 +48,6 @@ static int msm_restart_probe(struct platform_device *pdev)
                                   SYS_OFF_PRIO_DEFAULT, do_msm_poweroff,
                                   NULL);
 
-    dev_info(&pdev->dev, "MSM poweroff proc_comm driver initialized\n");
     return 0;
 }
 
@@ -71,5 +67,5 @@ static struct platform_driver msm_restart_driver = {
 
 builtin_platform_driver(msm_restart_driver);
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("The Linux Foundation");
+MODULE_AUTHOR("j0sh1x <aljoshua.hell@gmail.com>");
 MODULE_DESCRIPTION("MSM Restart Proc_Comm Driver");
