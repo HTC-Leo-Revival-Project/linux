@@ -29,12 +29,23 @@ static int do_msm_poweroff(struct sys_off_data *data)
     return NOTIFY_DONE; // Technically unreachable
 }
 
+static int do_msm_restart(struct sys_off_data *data)
+{
+    dev_info(&pdev_global->dev, "MSM restart received shutdown request\n");
+    msm_proc_comm(PCOM_RESET_CHIP, 0, 0);
+
+    // Enter an infinite loop to simulate restart
+    for (;;);
+
+    return NOTIFY_DONE; // Technically unreachable
+}
+
 static int msm_restart_probe(struct platform_device *pdev)
 {
     pdev_global = pdev; // Initialize the global variable
 
     devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_RESTART,
-                                  128, do_msm_poweroff, NULL);
+                                  128, do_msm_restart, NULL);
 
     devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_POWER_OFF,
                                   SYS_OFF_PRIO_DEFAULT, do_msm_poweroff,
