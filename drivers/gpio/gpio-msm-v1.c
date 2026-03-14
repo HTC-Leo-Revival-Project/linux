@@ -445,7 +445,7 @@ static int msm_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return (msm_gpio_readl(msm_chip, MSM_GPIO_IN) & (1U << offset)) ? 1 : 0;
 }
 
-static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct msm_gpio_chip *msm_chip;
 	unsigned long irq_flags;
@@ -454,6 +454,7 @@ static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	spin_lock_irqsave(&msm_chip->lock, irq_flags);
 	msm_gpio_write(msm_chip, offset, value);
 	spin_unlock_irqrestore(&msm_chip->lock, irq_flags);
+	return 0;
 }
 
 static int msm_gpio_to_irq(struct gpio_chip *chip, unsigned offset)

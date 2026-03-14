@@ -245,13 +245,13 @@ void pcom_vreg_control(unsigned vreg, unsigned level, unsigned state)
 		do
         {
             msm_proc_comm(PCOM_VREG_SET_LEVEL, &vreg, &level);
-		}while(PCOM_CMD_SUCCESS != readl(APP_STATUS));
+		}while (PCOM_CMD_SUCCESS != readl((void __iomem *)APP_STATUS));
     }
 	
 	do
     {
         msm_proc_comm(PCOM_VREG_SWITCH, &vreg, &s);
-    }while(PCOM_CMD_SUCCESS != readl(APP_STATUS));
+    }while (PCOM_CMD_SUCCESS != readl((void __iomem *)APP_STATUS));
 }
 EXPORT_SYMBOL(pcom_vreg_control);
 
@@ -264,7 +264,7 @@ void pcom_sdcard_power(int state)
 	{
 		msm_proc_comm(PCOM_VREG_SWITCH, &v, &s);
 
-        if(PCOM_CMD_SUCCESS != readl(APP_STATUS)) {
+        if(PCOM_CMD_SUCCESS != readl((void __iomem *)APP_STATUS)) {
 			printk(KERN_INFO "Error: PCOM_VREG_SWITCH failed...retrying\n");
 		} else {
 			printk(KERN_INFO "PCOM_VREG_SWITCH DONE\n");
@@ -327,7 +327,7 @@ void pcom_usb_vbus_power(int state)
 
 	msm_proc_comm(PCOM_PM_MPP_CONFIG, &v, &s);
 
-    if(PCOM_CMD_SUCCESS != readl(APP_STATUS)) {
+    if(PCOM_CMD_SUCCESS != readl((void __iomem *)APP_STATUS)) {
         printk(KERN_INFO "Error: PCOM_MPP_CONFIG failed... not retrying\n");
     } else {
         printk(KERN_INFO "PCOM_MPP_CONFIG DONE\n");
@@ -341,7 +341,7 @@ void pcom_usb_reset_phy(void)
 	{
         msm_proc_comm(PCOM_MSM_HSUSB_PHY_RESET, 0, 0);
 
-        if(PCOM_CMD_SUCCESS != readl(APP_STATUS)) {
+        if((void __iomem *)PCOM_CMD_SUCCESS != (void __iomem *)APP_STATUS) {
             printk(KERN_INFO "Error: PCOM_MSM_HSUSB_PHY_RESET failed...not retrying\n");
 			break; // remove to retry
         } else {
