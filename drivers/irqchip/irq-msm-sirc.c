@@ -32,25 +32,7 @@
 #include <asm/exception.h>
 #include <asm/irq.h>
 
-#define NR_SIRC_IRQS                  23
-#define SIRC_MASK                     0x007FFFFF
-
-#define FIRST_SIRC_IRQ                229
-
-#define SIRC_INT_SELECT          0x00
-#define SIRC_INT_ENABLE          0x04
-#define SIRC_INT_ENABLE_CLEAR    0x08
-#define SIRC_INT_ENABLE_SET      0x0C
-#define SIRC_INT_TYPE            0x10
-#define SIRC_INT_POLARITY        0x14
-#define SIRC_SECURITY            0x18
-#define SIRC_IRQ_STATUS          0x1C
-#define SIRC_IRQ1_STATUS         0x20
-#define SIRC_RAW_STATUS          0x24
-#define SIRC_INT_CLEAR           0x28
-#define SIRC_SOFT_INT            0x2C
-
-#define NUM_SIRC_REGS 2
+#include <dt-bindings/interrupt-controller/qcom-sirc.h>
 
 struct msm_sirc {
 	void __iomem		*base;
@@ -58,6 +40,9 @@ struct msm_sirc {
 	struct irq_domain	*domain;
 	u32					int_enable;
 	u32					wake_enable;
+	u32					mask;
+	u32					nr_sirc_irqs;
+	u32 				first_sirc_irq;
 };
 
 /* Mask off the given interrupt. Keep the int_enable mask in sync with
@@ -145,33 +130,15 @@ static void sirc_irq_handler(struct irq_desc *desc)
 	struct msm_sirc *sirc = irq_desc_get_handler_data(desc);
 	unsigned int sirq;
 	unsigned int status;
-	
-	/*
-	while ((reg < ARRAY_SIZE(sirc_reg_table)) &&
-		(sirc_reg_table[reg].cascade_irq != irq))
-		reg++;
-
-	if (reg == ARRAY_SIZE(sirc_reg_table)) {
-		printk(KERN_ERR "%s: incorrect irq %d called\n",
-			__func__, irq);
-		return;
-	}*/
 
 	chained_irq_enter(chip, desc);
 
 	status = readl(sirc->base + SIRC_IRQ_STATUS);
-	status &= SIRC_MASK;
+	status &= sirc->mask;
 	if (status == 0)
 		return;
 
-	/*
-	for (sirq = 0;
-	     (sirq < NR_SIRC_IRQS) && ((status & (1U << sirq)) == 0);
-	     sirq++)
-		;
-		generic_handle_irq(sirq+FIRST_SIRC_IRQ);
-	*/
-	for (sirq = 0; (sirq < NR_SIRC_IRQS); sirq++) {
+	for (sirq = 0; (sirq < sirc->nr_sirc_irqs); sirq++) {
 		if((status & (1U << sirq)) != 0) {
 			generic_handle_domain_irq(sirc->domain, sirq);
 		}
@@ -220,13 +187,32 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 		panic("%pOF: unable to map sirc interrupt registers\n", node);
 	}
 
-    irq_base = irq_alloc_descs(-1, FIRST_SIRC_IRQ, NR_SIRC_IRQS, 0);
+	int ret = of_property_read_u32(node, "first-sirc-irq", &sirc->first_sirc_irq);
+	if (ret || sirc->first_sirc_irq < 0) {
+		pr_err("%pOF: unable to read first-sirc-irq property\n", node);
+		return ret;
+	}
+	
+	ret = of_property_read_u32(node, "nr-sirc-irqs", &sirc->nr_sirc_irqs);
+	if (ret || sirc->nr_sirc_irqs < 0) {
+		pr_err("%pOF: unable to read nr-sirc-irqs property\n", node);
+		return ret;
+	}
+
+	ret = of_property_read_u32(node, "sirc-mask", &sirc->mask);
+	if (ret) {
+		pr_err("%pOF: unable to read sirc-mask property\n", node);
+		return ret;
+	}
+
+
+    irq_base = irq_alloc_descs(-1, sirc->first_sirc_irq, sirc->nr_sirc_irqs, 0);
 	if (irq_base < 0) {
 		pr_warn("Couldn't allocate IRQ numbers\n");
         irq_base = 0;
 	}
 
-    sirc->domain = irq_domain_create_legacy(of_fwnode_handle(node), NR_SIRC_IRQS, FIRST_SIRC_IRQ, 0,
+    sirc->domain = irq_domain_create_legacy(of_fwnode_handle(node), sirc->nr_sirc_irqs, sirc->first_sirc_irq, 0,
 					       &msm_sirc_irqchip_intc_ops, sirc);
 	if (!sirc->domain)
 		panic("Unable to add SIRC IRQ domain\n");
@@ -248,4 +234,4 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 	return 0;
 }
 
-IRQCHIP_DECLARE(arm_msm_sirc, "arm,msm-sirc", msm_init_sirc);
+IRQCHIP_DECLARE(qcom_msm_sirc, "qcom,msm-sirc", msm_init_sirc);

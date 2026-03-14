@@ -4,6 +4,8 @@
  * Copyright (c) 2024, HTC Leo Revival Project. All rights reserved.
  */
 
+ #include <dt-bindings/interrupt-controller/qcom-sirc.h>
+
 /dts-v1/;
 
 / {
@@ -73,8 +75,11 @@
 		};
 		
 		sirc: interrupt-controller@ac200000 {
-			compatible = "arm,msm-sirc";
+			compatible = "qcom,msm-sirc";
 			reg = <0xac200000 0x1000>;
+			first-sirc-irq = <229>;
+			nr-sirc-irqs = <23>;
+			sirc-mask = <0x007FFFFF>;
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			interrupt-parent = <&intc>;
