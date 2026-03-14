@@ -415,7 +415,7 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	set_handle_irq(vic_handle_irq);
 
 
-	vic_data.domain = irq_domain_add_linear(intc, num_irqs, &irq_domain_simple_ops, &vic_data);
+	vic_data.domain = irq_domain_create_legacy(of_fwnode_handle(intc), num_irqs, 0, 0, &irq_domain_simple_ops, &vic_data);
 	if (!vic_data.domain) {
 		pr_err("%s: failed to register irq domain\n", __func__);
 	}
