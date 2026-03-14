@@ -591,10 +591,10 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	val = msm_gpio_readl(msm_chip, MSM_GPIO_INT_EDGE);
 	if (flow_type & IRQ_TYPE_EDGE_BOTH) {
 		msm_gpio_writel(msm_chip, val | mask, MSM_GPIO_INT_EDGE);
-		irq_set_handler_locked((struct irq_data*)d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 	} else {
 		msm_gpio_writel(msm_chip, val & ~mask, MSM_GPIO_INT_EDGE);
-		irq_set_handler_locked((struct irq_data*)d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	}
 	if ((flow_type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
 		msm_chip->both_edge_detect |= mask;

@@ -161,7 +161,7 @@ struct vic_device {
 static struct vic_device vic_data;
 
 #define SMSM_FAKE_IRQ (0xff)
-static uint8_t msm_irq_to_smsm[NR_IRQS] = {
+static uint8_t msm_irq_to_smsm[MSM_NR_IRQS] = {
 	[INT_MDDI_EXT] = 1,
 	[INT_MDDI_PRI] = 2,
 	[INT_MDDI_CLIENT] = 3,
@@ -205,6 +205,7 @@ static uint8_t msm_irq_to_smsm[NR_IRQS] = {
 	[INT_SIRC_0] = SMSM_FAKE_IRQ,
 	[INT_SIRC_1] = SMSM_FAKE_IRQ,
 };
+void set_irq_flags(unsigned int irq, unsigned int iflags);
 
 void set_irq_flags(unsigned int irq, unsigned int iflags)
 {
@@ -372,7 +373,6 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	int ret;
 	void __iomem *regs;
 	uint32_t num_irqs;
-	int i;
 	regs = of_iomap(intc, 0);
 	if (WARN_ON(!regs))
 		return -EIO;

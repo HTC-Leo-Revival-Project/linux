@@ -11,12 +11,18 @@
 	compatible = "htc,leo", "qcom,qsd8250";
 	chassis-type = "handset";
 
+	aliases {
+		serial0 = &blsp1_uart1;
+	};
+
 	chosen {
 		/* Use efifb for video output, rodata=off is needed
 		 * as the kernel doesn't boot with kernel memory 
 		 * protection enabled
 		 */
         bootargs = "video=efifb rodata=off";
+		stdout-path = "serial0:115200n8";
+
 	};
 
 	reserved-memory {
@@ -44,4 +50,8 @@
 			no-map;
 		};
 	};
+};
+
+&blsp1_uart1 {
+	status = "okay";
 };
