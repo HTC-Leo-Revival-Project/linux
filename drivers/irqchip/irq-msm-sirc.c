@@ -35,7 +35,7 @@
 #define NR_SIRC_IRQS                  23
 #define SIRC_MASK                     0x007FFFFF
 
-#define FIRST_SIRC_IRQ                64
+#define FIRST_SIRC_IRQ                229
 
 #define SIRC_INT_SELECT          0x00
 #define SIRC_INT_ENABLE          0x04
