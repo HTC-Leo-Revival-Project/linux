@@ -5,7 +5,8 @@
  */
 
  #include <dt-bindings/interrupt-controller/qcom-sirc.h>
-
+ #include <dt-bindings/interrupt-controller/qcom-vic.h>
+ 
 /dts-v1/;
 
 / {
@@ -67,11 +68,51 @@
 		ranges;
 
 		intc: interrupt-controller@ac000000 {
-			compatible = "arm,msm-vic";
+			compatible = "qcom,msm-vic";
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0xac000000 0x1000>;
 			num-irqs = <64>;
+			num-gpio-irqs = <165>;
+			vic-num-regs = <2>;
+			irq-mapping = <
+    		17 1   /* INT_MDDI_EXT -> SMSM 1 */
+    		16 2   /* INT_MDDI_PRI -> SMSM 2 */
+    		18 3   /* INT_MDDI_CLIENT -> SMSM 3 */
+    		15 4   /* INT_USB_OTG -> SMSM 4 */
+    		34 5   /* INT_PWB_I2C -> SMSM 5 */
+    		24 6   /* INT_SDC1_0 -> SMSM 6 */
+    		25 7   /* INT_SDC1_1 -> SMSM 7 */
+    		26 8   /* INT_SDC2_0 -> SMSM 8 */
+    		27 9   /* INT_SDC2_1 -> SMSM 9 */
+    		23 10  /* INT_ADSP_A9_A11 -> SMSM 10 */
+    		44 17  /* INT_UART1DM_IRQ -> SMSM 17 */
+    		45 18  /* INT_UART1DM_RX -> SMSM 18 */
+    		28 19  /* INT_KEYSENSE -> SMSM 19 */
+    		40 20  /* INT_AD_HSSD -> SMSM 20 */
+    		36 21  /* INT_NAND_WR_ER_DONE -> SMSM 21 */
+    		37 22  /* INT_NAND_OP_DONE -> SMSM 22 */
+    		30 23  /* INT_TCHSCRN1 -> SMSM 23 */
+    		31 24  /* INT_TCHSCRN2 -> SMSM 24 */
+    		29 25  /* INT_TCHSCRN_SSBI -> SMSM 25 */
+    		58 26  /* INT_USB_HS -> SMSM 26 */
+    		53 27  /* INT_UART2DM_RX -> SMSM 27 */
+    		52 28  /* INT_UART2DM_IRQ -> SMSM 28 */
+    		13 29  /* INT_SDC4_1 -> SMSM 29 */
+    		12 30  /* INT_SDC4_0 -> SMSM 30 */
+    		11 31  /* INT_SDC3_1 -> SMSM 31 */
+    		10 32  /* INT_SDC3_0 -> SMSM 32 */
+
+		    /* fake wakeup interrupts */
+    		0 SMSM_FAKE_IRQ   /* INT_A9_M2A_0 -> SMSM_FAKE_IRQ */
+    		1 SMSM_FAKE_IRQ   /* INT_A9_M2A_1 -> SMSM_FAKE_IRQ */
+    		5 SMSM_FAKE_IRQ   /* INT_A9_M2A_5 -> SMSM_FAKE_IRQ */
+    		7 SMSM_FAKE_IRQ   /* INT_GP_TIMER_EXP -> SMSM_FAKE_IRQ */
+    		8 SMSM_FAKE_IRQ   /* INT_DEBUG_TIMER_EXP -> SMSM_FAKE_IRQ */
+    		22 SMSM_FAKE_IRQ  /* INT_ADSP_A11 -> SMSM_FAKE_IRQ */
+    		9 SMSM_FAKE_IRQ   /* INT_SIRC_0 -> SMSM_FAKE_IRQ */
+    		63 SMSM_FAKE_IRQ  /* INT_SIRC_1 -> SMSM_FAKE_IRQ */
+			>;
 		};
 		
 		sirc: interrupt-controller@ac200000 {
