@@ -707,7 +707,7 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 		else
 			msm_gpio_chips[i].base = base1;
 		spin_lock_init(&msm_gpio_chips[i].lock);
-
+		msm_gpio_chips[i].chip.label = dev_name(&pdev->dev);
 		msm_gpio_writel(&msm_gpio_chips[i], 0, MSM_GPIO_INT_EN);
 		msm_gpio_chips[i].chip.base = -1;
 		if (gpiochip_add_data(&msm_gpio_chips[i].chip, &msm_gpio_chips[i]) < 0) {
