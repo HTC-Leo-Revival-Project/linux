@@ -161,10 +161,23 @@
 	      		  <0xA9100000 0x00100000>;
 			interrupt-parent = <&sirc>;
 			interrupts = <9 10>;
+			gpio-mux-pins = <165>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+qsd8250_clk: clk@0 {
+    compatible = "qcom,qsd8250-clk";
+    #clock-cells = <1>;
+    qcom,clk-ids = <34>; /* UART clock ID */
+};
 	};
+
+hack_clk {
+    compatible = "qcom,hack-clk";
+    clocks = <&qsd8250_clk 0>;   /* index 0 → ID 34 */
+    clock-names = "core";
+};
 };

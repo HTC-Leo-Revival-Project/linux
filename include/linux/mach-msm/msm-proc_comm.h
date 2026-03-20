@@ -16,6 +16,8 @@
 #ifndef _ARCH_ARM_MACH_MSM_MSM_PROC_COMM_H_
 #define _ARCH_ARM_MACH_MSM_MSM_PROC_COMM_H_
 #include "gpio.h"
+#include <linux/kernel.h>
+
 enum {
 	PCOM_CMD_IDLE = 0x0,
 	PCOM_CMD_DONE,
@@ -476,5 +478,20 @@ enum
 	PCOM_NR_CLKS,
 };
 
+
+/*
+ * struct pcom_clk - proc_comm controlled clock
+ * @id: proc_comm identifier
+ * @c:
+ */
+// struct pcom_clk {
+// 	unsigned id;
+// 	struct clk c;
+// };
+
+// static inline struct pcom_clk *to_pcom_clk(struct clk *clk)
+// {
+// 	return container_of(clk, struct pcom_clk, c);
+// }
 
 #endif
