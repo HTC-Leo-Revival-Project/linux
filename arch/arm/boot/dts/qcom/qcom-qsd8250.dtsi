@@ -132,7 +132,7 @@
 			reg = <0xa9a00000 0x1000>;
 			interrupt-parent = <&sirc>;
 			interrupts = <0>;
-			clocks = <&uart1_clk>;
+			clocks = <&qsd8250_clk 0>;
 			clock-names = "core";
 		};
 
@@ -171,13 +171,8 @@
 qsd8250_clk: clk@0 {
     compatible = "qcom,qsd8250-clk";
     #clock-cells = <1>;
-    qcom,clk-ids = <34>; /* UART clock ID */
+    qcom,clk-ids = <31>; /* UART1 clock ID */
 };
 	};
 
-hack_clk {
-    compatible = "qcom,hack-clk";
-    clocks = <&qsd8250_clk 0>;   /* index 0 → ID 34 */
-    clock-names = "core";
-};
 };
