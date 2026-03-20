@@ -16,6 +16,8 @@ struct qsd8250_clk {
     unsigned int id;  /* PCOM clock ID */
 };
 
+static const unsigned long uart1_clk_rates[] = { 1843200UL, 0 };
+
 #define to_qsd8250_clk(_hw) container_of(_hw, struct qsd8250_clk, hw)
 
 /* clk_ops */
@@ -40,11 +42,11 @@ static void qsd8250_clk_disable(struct clk_hw *hw)
         pr_info("Disabled clock ID %u\n", c->id);
 }
 
-static unsigned long qsd8250_clk_get_rate(struct clk_hw *hw,
-                                          unsigned long parent_rate)
+static int qsd8250_clk_get_rate(struct clk_hw *hw,struct clk_rate_request *req)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
     int rate = pcom_clock_get_rate(c->id);
+    pr_info("Clock ID %u rate is %d\n", c->id, rate);
     return (rate > 0) ? rate : 0;
 }
 
@@ -58,8 +60,19 @@ static int qsd8250_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 long qsd8250_clk_round_rate(struct clk_hw *hw, unsigned long rate, unsigned long *p_rate)
 {
-    /* Not really supported; pc_clk_set_rate() does rounding on it's own. */
-	return rate;
+    unsigned long best = uart1_clk_rates[0];
+    unsigned long diff, best_diff = ~0UL;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(uart1_clk_rates); i++) {
+        diff = (rate > uart1_clk_rates[i]) ? rate - uart1_clk_rates[i] : uart1_clk_rates[i] - rate;
+        if (diff < best_diff) {
+            best_diff = diff;
+            best = uart1_clk_rates[i];
+        }
+    }
+
+    return best;
 }
 
 static unsigned long qsd8250_clk_recalc_rate(struct clk_hw *hw, unsigned long p_rate)
@@ -74,6 +87,7 @@ static const struct clk_ops qsd8250_clk_ops = {
     .set_rate = qsd8250_clk_set_rate,
     .round_rate = qsd8250_clk_round_rate,
     .recalc_rate = qsd8250_clk_recalc_rate,
+    .determine_rate = qsd8250_clk_get_rate,
 };
 
 static int qsd8250_clk_probe(struct platform_device *pdev)
