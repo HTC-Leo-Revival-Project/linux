@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/mach-msm/msm-proc_comm.h>
+#include <linux/mach-msm/pcom_clocks.h>
 
 struct qsd8250_clk {
     struct clk_hw hw;
@@ -24,6 +25,10 @@ static const unsigned long uart1_clk_rates[] = { 1843200UL, 0 };
 static int qsd8250_clk_enable(struct clk_hw *hw)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
+    if (c->id == PCOM_EBI1_CLK || c->id == PCOM_EBI1_FIXED_CLK) { // EBI CLOCKS ARE ALWAYS ON, DO NOT ENABLE
+        pr_info("Clock ID %u is EBI or EBI_FIXED, skipping enable\n", c->id);
+        return 0;
+    }
     int ret = pcom_clock_enable( c->id);
     if (ret < 0)
         pr_err("Failed to enable clock ID %u", c->id);
@@ -35,6 +40,10 @@ static int qsd8250_clk_enable(struct clk_hw *hw)
 static void qsd8250_clk_disable(struct clk_hw *hw)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
+    if (c->id == PCOM_EBI1_CLK || c->id == PCOM_EBI1_FIXED_CLK) { // EBI CLOCKS ARE ALWAYS ON, DO NOT DISABLE
+        pr_info("Clock ID %u is EBI or EBI_FIXED, skipping disable\n", c->id);
+        return;
+    }
     int ret = pcom_clock_disable(c->id);
     if (ret < 0)
         pr_err("Failed to disable clock ID %u", c->id);
