@@ -22,32 +22,29 @@ struct qsd8250_clk {
 static int qsd8250_clk_enable(struct clk_hw *hw)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
-    int id = c->id;
-    int ret = pcom_clock_enable(id);
+    int ret = pcom_clock_enable( c->id);
     if (ret < 0)
         pr_err("Failed to enable clock ID %u", c->id);
     else
-        pr_info("Enabled clock ID %u, status is : %d\n", c->id, id);
+        pr_info("Enabled clock ID %u\n", c->id);
     return ret;
 }
 
 static void qsd8250_clk_disable(struct clk_hw *hw)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
-    int id = c->id;
-    int ret = pcom_clock_disable(id);
+    int ret = pcom_clock_disable(c->id);
     if (ret < 0)
         pr_err("Failed to disable clock ID %u", c->id);
     else
-        pr_info("Disabled clock ID %u, status is : %d\n", c->id, id);
+        pr_info("Disabled clock ID %u\n", c->id);
 }
 
 static unsigned long qsd8250_clk_get_rate(struct clk_hw *hw,
                                           unsigned long parent_rate)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
-    int rate = c->id;
-    int ret = pcom_clock_get_rate(rate);
+    int rate = pcom_clock_get_rate(c->id);
     return (rate > 0) ? rate : 0;
 }
 
@@ -59,10 +56,24 @@ static int qsd8250_clk_set_rate(struct clk_hw *hw, unsigned long rate,
     return pcom_clock_set_rate(id, rate);
 }
 
+long qsd8250_clk_round_rate(struct clk_hw *hw, unsigned long rate, unsigned long *p_rate)
+{
+    /* Not really supported; pc_clk_set_rate() does rounding on it's own. */
+	return rate;
+}
+
+static unsigned long qsd8250_clk_recalc_rate(struct clk_hw *hw, unsigned long p_rate)
+{
+
+	return p_rate;
+}
+
 static const struct clk_ops qsd8250_clk_ops = {
     .enable = qsd8250_clk_enable,
     .disable = qsd8250_clk_disable,
     .set_rate = qsd8250_clk_set_rate,
+    .round_rate = qsd8250_clk_round_rate,
+    .recalc_rate = qsd8250_clk_recalc_rate,
 };
 
 static int qsd8250_clk_probe(struct platform_device *pdev)
@@ -84,6 +95,9 @@ static int qsd8250_clk_probe(struct platform_device *pdev)
     if (!clk_data)
         return -ENOMEM;
 
+    if (!is_pcom_probed()) {
+        return -EPROBE_DEFER;
+    }
     for (i = 0; i < nclks; i++) {
         u32 id;
         struct clk_init_data *init;
@@ -115,12 +129,17 @@ static int qsd8250_clk_probe(struct platform_device *pdev)
         init->num_parents = 0;
 
         clk->hw.init = init;
-        clk->hw.clk.max_rate = 1920000; // 1.92 MHz
+        pr_info("Registering clock ID %u\n", id);
 
+        int err = clk_hw_register(NULL, &clk->hw);
+        if (err < 0) {
+            pr_err("Failed to register clock ID %u", id);
+            return err;
+        }
         clk_data->hws[i] = &clk->hw;
 
-        pr_info("clk %u init=%p ops=%p\n",
-                id, clk->hw.init, clk->hw.init->ops);
+        // pr_info("clk %u init=%p ops=%p\n",
+        //         id, clk->hw.init, clk->hw.init->ops);
     }
 
     clk_data->num = nclks;

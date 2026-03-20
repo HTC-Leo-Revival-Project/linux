@@ -280,6 +280,7 @@ void pcom_enable_lcdc_pad_clk(void);
 void pcom_enable_lcdc_clk(void);
 uint32_t pcom_get_lcdc_clk(void);
 void pcom_end_cmds(void);
+bool is_pcom_probed(void);
 
 
 #define LK_BOOTREASON_ADDR 		0x2FFB0000

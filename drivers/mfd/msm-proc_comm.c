@@ -110,7 +110,7 @@ EXPORT_SYMBOL(msm_proc_comm_reset_modem_now);
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2)
 {
     unsigned long flags;
-    int ret;
+    int ret = -1;
 
     spin_lock_irqsave(&proc_comm_lock, flags);
 
@@ -461,6 +461,15 @@ void pcom_disable_sdcard_clk(int instance)
 	}
 }
 EXPORT_SYMBOL(pcom_disable_sdcard_clk);
+
+bool is_pcom_probed(void) {
+	if (proc_comm_data && proc_comm_data->shared_ram_base && proc_comm_data->csr_base) {
+		return true;
+	} else {
+		return false;
+	}
+}
+EXPORT_SYMBOL(is_pcom_probed);
 
 static int msm_proc_comm_probe(struct platform_device *pdev)
 {
