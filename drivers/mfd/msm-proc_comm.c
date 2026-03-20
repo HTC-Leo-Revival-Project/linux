@@ -23,6 +23,8 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mach-msm/msm-iomap-qsd8k.h>
 
@@ -519,7 +521,44 @@ static struct platform_driver msm_proc_comm_driver = {
     },
 };
 
-module_platform_driver(msm_proc_comm_driver);
+static int __init msm_proc_comm_early_init(void)
+{
+    struct device_node *np;
+    struct resource res;
+
+    np = of_find_compatible_node(NULL, NULL, "qcom,msm-proc-comm");
+    if (!np) {
+        pr_err("MSM proc_comm DT node not found\n");
+        return -ENODEV;
+    }
+
+    proc_comm_data = kzalloc(sizeof(*proc_comm_data), GFP_KERNEL);
+    if (!proc_comm_data)
+        return -ENOMEM;
+
+    if (of_address_to_resource(np, 0, &res)) {
+        pr_err("Failed to get shared RAM resource\n");
+        return -EINVAL;
+    }
+    proc_comm_data->shared_ram_base = ioremap(res.start, resource_size(&res));
+    if (!proc_comm_data->shared_ram_base)
+        return -ENOMEM;
+
+    if (of_address_to_resource(np, 1, &res)) {
+        pr_err("Failed to get CSR resource\n");
+        return -EINVAL;
+    }
+    proc_comm_data->csr_base = ioremap(res.start, resource_size(&res));
+    if (!proc_comm_data->csr_base)
+        return -ENOMEM;
+
+    spin_lock_init(&proc_comm_lock);
+    pr_info("MSM proc_comm initialized early\n");
+
+    return 0;
+}
+
+early_initcall(msm_proc_comm_early_init);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("J0SH1X <aljoshua.hell@gmail.com");
