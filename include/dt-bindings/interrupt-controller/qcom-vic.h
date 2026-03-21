@@ -42,11 +42,6 @@
 #define VIC_INT_MASTEREN    0x0068  /* 1: IRQ, 2: FIQ     */
 #define VIC_CONFIG          0x006C  /* 1: USE SC VIC */
 
-
-#define IRQF_VALID	(1 << 0)
-#define IRQF_PROBE	(1 << 1)
-#define IRQF_NOAUTOEN	(1 << 2)
-
 #define VIC_IRQ_STATUS0     0x0080
 #define VIC_IRQ_STATUS1     0x0084
 #define VIC_IRQ_STATUS2     0x0088

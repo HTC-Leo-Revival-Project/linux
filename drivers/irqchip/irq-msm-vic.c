@@ -4,47 +4,21 @@
  * Copyright (c) 2009, Code Aurora Forum. All rights reserved.
  * Copyright (c) 2024, Htc Leo Revival Project
  *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/ptrace.h>
-#include <linux/timer.h>
-#include <linux/irq.h>
-#include <linux/irqchip.h>
-#include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
-#include <linux/cacheflush.h>
-
 #include <asm/exception.h>
-#include <asm/irq.h>
-
 #include <dt-bindings/interrupt-controller/qcom-vic.h>
+#include <linux/irqchip.h>
+#include <linux/of_address.h>
 
-static u32 msm_irq_smsm_wake_enable[2];
+#define NO_PENDING_IRQ  (~0U)
+
 struct msm_irq_shadow {
 	u32 int_en[2];
 	u32 int_type;
 	u32 int_polarity;
 	u32 int_select;
 };
-
-static struct msm_irq_shadow *msm_irq_shadow_reg;
-static u32 *msm_irq_idle_disable;
 
 struct msm_irq_map {
 	u32 irq;
@@ -63,6 +37,9 @@ struct vic_device {
 };
 
 static struct vic_device vic_data;
+static struct msm_irq_shadow *msm_irq_shadow_reg;
+static u32 *msm_irq_idle_disable;
+static u32 msm_irq_smsm_wake_enable[2];
 
 static int msm_irq_to_smsm(u32 irq)
 {
@@ -79,28 +56,6 @@ static int msm_irq_to_smsm(u32 irq)
 	return -ENOENT;
 }
 
-void set_irq_flags(unsigned int irq, unsigned int iflags);
-
-void set_irq_flags(unsigned int irq, unsigned int iflags)
-{
-	unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
-
-	if (irq >= vic_data.msm_nr_irqs) {
-		pr_err("Trying to set irq flags for IRQ%d\n", irq);
-		return;
-	}
-
-	if (iflags & IRQF_VALID)
-		clr |= IRQ_NOREQUEST;
-	if (iflags & IRQF_PROBE)
-		clr |= IRQ_NOPROBE;
-	if (!(iflags & IRQF_NOAUTOEN))
-		clr |= IRQ_NOAUTOEN;
-	/* Order is clear bits in "clr" then set bits in "set" */
-	irq_modify_status(irq, clr, set & ~clr);
-}
-EXPORT_SYMBOL_GPL(set_irq_flags);
-
 static inline void msm_irq_write_all_regs(void __iomem *base, unsigned int val)
 {
 	for (int i = 0; i < vic_data.vic_num_regs; i++)
@@ -111,14 +66,14 @@ static void msm_irq_ack(struct irq_data *d)
 {
 	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_CLEAR0, d->irq);
 
-	writel(1 << (d->irq & 31), reg);
+	writel(BIT(d->irq & 31), reg);
 }
 
 static void msm_irq_mask(struct irq_data *d)
 {
 	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_ENCLEAR0, d->irq);
 	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
-	u32 mask = 1UL << (d->irq & 31);
+	u32 mask = BIT(d->irq & 31);
 	int smsm_irq = msm_irq_to_smsm(d->irq);
 
 	msm_irq_shadow_reg[index].int_en[0] &= ~mask;
@@ -126,7 +81,7 @@ static void msm_irq_mask(struct irq_data *d)
 	if (smsm_irq == 0) {
 		msm_irq_idle_disable[index] &= ~mask;
 	} else {
-		mask = 1UL << (smsm_irq - 1);
+		mask = BIT(smsm_irq - 1);
 		msm_irq_smsm_wake_enable[0] &= ~mask;
 	}
 }
@@ -135,8 +90,10 @@ static void msm_irq_unmask(struct irq_data *d)
 {
 	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_ENSET0, d->irq);
 	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
-	u32 mask = 1UL << (d->irq & 31);
+	u32 mask = BIT(d->irq & 31);
 	int smsm_irq = msm_irq_to_smsm(d->irq);
+	if (smsm_irq < 0)
+		return;
 
 	msm_irq_shadow_reg[index].int_en[0] |= mask;
 	writel(mask, reg);
@@ -144,7 +101,7 @@ static void msm_irq_unmask(struct irq_data *d)
 	if (smsm_irq == 0) {
 		msm_irq_idle_disable[index] |= mask;
 	} else {
-		mask = 1UL << (smsm_irq - 1);
+		mask = BIT(smsm_irq - 1);
 		msm_irq_smsm_wake_enable[0] |= mask;
 	}
 }
@@ -152,7 +109,7 @@ static void msm_irq_unmask(struct irq_data *d)
 static int msm_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
-	u32 mask = 1UL << (d->irq & 31);
+	u32 mask = BIT(d->irq & 31);
 	int smsm_irq = msm_irq_to_smsm(d->irq);
 
 	if (smsm_irq == 0) {
@@ -167,7 +124,7 @@ static int msm_irq_set_wake(struct irq_data *d, unsigned int on)
 	if (smsm_irq == SMSM_FAKE_IRQ)
 		return 0;
 
-	mask = 1UL << (smsm_irq - 1);
+	mask = BIT(smsm_irq - 1);
 	if (on)
 		msm_irq_smsm_wake_enable[1] |= mask;
 	else
@@ -180,7 +137,7 @@ static int msm_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	void __iomem *treg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_TYPE0, d->irq);
 	void __iomem *preg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_POLARITY0, d->irq);
 	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
-	int b = 1 << (d->irq & 31);
+	int b = BIT(d->irq & 31);
 	u32 polarity;
 	u32 type;
 
@@ -206,19 +163,19 @@ static int msm_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
-static inline void msm_vic_handle_irq(void __iomem *base_addr, struct pt_regs
-		*regs)
+static inline void msm_vic_handle_irq(void __iomem *base_addr, struct pt_regs *regs)
 {
 	u32 irqnr;
 
 	do {
-		/* VIC_IRQ_VEC_RD has irq# or old irq# if the irq has been handled
+		/*
+		 * VIC_IRQ_VEC_RD has irq# or old irq# if the irq has been handled
 		 * VIC_IRQ_VEC_PEND_RD has irq# or -1 if none pending *but* if you
 		 * just read VIC_IRQ_VEC_PEND_RD you never get the first irq for some reason
 		 */
 		irqnr = readl_relaxed(base_addr + VIC_IRQ_VEC_RD);
 		irqnr = readl_relaxed(base_addr + VIC_IRQ_VEC_PEND_RD);
-		if (irqnr == -1)
+		if (irqnr == NO_PENDING_IRQ)
 			break;
 		handle_IRQ(irqnr, regs);
 	} while (1);
@@ -232,7 +189,7 @@ static inline void local_cpsie_enable(void)
 
 static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
 {
-	local_cpsie_enable();// local_abt_enable()?
+	local_cpsie_enable();
 	msm_vic_handle_irq(vic_data.base, regs);
 }
 
@@ -284,25 +241,25 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	ret = of_property_read_u32(intc, "num-irqs", &vic_data.nr_vic_irqs);
 	if (ret) {
 		pr_err("%s: failed to read num-irqs ret=%d\n", __func__, ret);
-		return ret;
+		goto cleanup;
 	}
 
 	ret = of_property_read_u32(intc, "num-gpio-irqs", &vic_data.nr_gpio_irqs);
 	if (ret) {
 		pr_err("%s: failed to read num-gpio-irqs ret=%d\n", __func__, ret);
-		return ret;
+		goto cleanup;
 	}
 
 	ret = msm_vic_parse_irq_mapping(intc, &vic_data.irq_map, &vic_data.irq_map_count);
 	if (ret) {
 		pr_err("Failed to parse irq-mapping\n");
-		return ret;
+		goto cleanup;
 	}
 
 	ret = of_property_read_u32(intc, "vic-num-regs", &vic_data.vic_num_regs);
 	if (ret) {
 		pr_err("Failed to parse vic-num-regs\n");
-		return ret;
+		goto cleanup;
 	}
 
 	msm_irq_shadow_reg = kcalloc(vic_data.vic_num_regs,
@@ -314,13 +271,10 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 				       GFP_KERNEL);
 
 	if (!msm_irq_shadow_reg || !msm_irq_idle_disable)
-		return -ENOMEM;
+		goto cleanup;
 
 	vic_data.msm_nr_irqs = vic_data.nr_vic_irqs * 2 + vic_data.nr_gpio_irqs;
 
-	ret = irq_alloc_descs(-1, 0, vic_data.nr_vic_irqs, 0);
-	if (ret < 0)
-		pr_warn("Couldn't allocate IRQ numbers\n");
 	/* select level interrupts */
 	msm_irq_write_all_regs(vic_data.base + VIC_INT_TYPE0, 0);
 
@@ -339,10 +293,8 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	/* enable interrupt controller */
 	writel(3, vic_data.base + VIC_INT_MASTEREN);
 
-	for (int n = 0; n < vic_data.msm_nr_irqs; n++) {
+	for (int n = 0; n < vic_data.nr_vic_irqs; n++)
 		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);
-		set_irq_flags(n, IRQF_VALID);
-	}
 
 	/* Ready to receive interrupts */
 	set_handle_irq(vic_handle_irq);
@@ -356,6 +308,13 @@ static int __init msm_init_irq(struct device_node *intc, struct device_node *par
 	if (!vic_data.domain)
 		pr_err("%s: failed to register irq domain\n", __func__);
 	return 0;
+
+cleanup:
+		kfree(msm_irq_shadow_reg);
+		kfree(msm_irq_idle_disable);
+		kfree(vic_data.irq_map);
+		iounmap(vic_data.base);
+		return ret;
 }
 
 IRQCHIP_DECLARE(qcom_msm_vic, "qcom,msm-vic", msm_init_irq);

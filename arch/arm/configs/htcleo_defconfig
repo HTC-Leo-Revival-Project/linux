@@ -5244,7 +5244,7 @@ CONFIG_ARM_GIC_MAX_NR=1
 # CONFIG_AL_FIC is not set
 # CONFIG_XILINX_INTC is not set
 # CONFIG_QCOM_PDC is not set
-CONFIG_ARM_MSM_VIC=y
+CONFIG_QCOM_MSM_VIC=y
 # CONFIG_QCOM_MPM is not set
 # end of IRQ chip support
 
