@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright (C) 2007 Google, Inc.
+ * Copyright (c) 2007 Google, Inc.
  * Copyright (c) 2009, Code Aurora Forum. All rights reserved.
- * Copyright (c) 2024, Htc Leo Revival Project
+ * Copyright (c) 2026, Htc Leo Revival Project
  *
  */
 
@@ -92,6 +92,7 @@ static void msm_irq_unmask(struct irq_data *d)
 	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
 	u32 mask = BIT(d->irq & 31);
 	int smsm_irq = msm_irq_to_smsm(d->irq);
+
 	if (smsm_irq < 0)
 		return;
 
@@ -205,30 +206,47 @@ static struct irq_chip msm_irq_chip = {
 
 static int msm_vic_parse_irq_mapping(struct device_node *np, struct msm_irq_map **map, int *count)
 {
-	const __be32 *prop;
-	int len, i;
+	u32 *buf;
+	int len, i, ret;
 
-	prop = of_get_property(np, "irq-mapping", &len);
-	if (!prop) {
+	if (!of_get_property(np, "irq-mapping", &len)) {
 		pr_err("%s: No irq-mapping property in device tree\n", __func__);
 		return -ENODEV;
 	}
 
-    /* Each entry is 2 u32 values: irq + smsm */
+	/* Each entry is 2 u32 values: irq + smsm */
 	*count = len / (2 * sizeof(u32));
 
-	*map = kzalloc((*count) * sizeof(**map), GFP_KERNEL);
-	if (!*map) {
-		pr_err("%s: Failed to allocate memory for irq_map\n", __func__);
+	buf = kcalloc(*count * 2, sizeof(u32), GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
+
+	*map = kcalloc(*count, sizeof(**map), GFP_KERNEL);
+	if (!*map) {
+		ret = -ENOMEM;
+		goto err_free_buf;
+	}
+
+	ret = of_property_read_u32_array(np, "irq-mapping", buf, *count * 2);
+	if (ret) {
+		pr_err("%s: Failed to read irq-mapping property\n", __func__);
+		goto err_free_map;
 	}
 
 	for (i = 0; i < *count; i++) {
-		(*map)[i].irq = be32_to_cpu(prop[i * 2]);
-		(*map)[i].smsm = be32_to_cpu(prop[i * 2 + 1]);
+		(*map)[i].irq  = buf[i * 2];
+		(*map)[i].smsm = buf[i * 2 + 1];
 	}
 
+	kfree(buf);
 	return 0;
+
+err_free_map:
+	kfree(*map);
+	*map = NULL;
+err_free_buf:
+	kfree(buf);
+	return ret;
 }
 
 static int __init msm_init_irq(struct device_node *intc, struct device_node *parent)
