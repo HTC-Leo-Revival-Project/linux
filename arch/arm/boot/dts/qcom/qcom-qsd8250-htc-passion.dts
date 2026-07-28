@@ -7,8 +7,8 @@
 #include "qcom-qsd8250.dtsi"
 
 / {
-	model = "HTC HD2";
-	compatible = "htc,leo", "qcom,qsd8250";
+	model = "HTC Nexus One";
+	compatible = "htc,passion", "qcom,qsd8250";
 	chassis-type = "handset";
 
 	aliases {
@@ -21,7 +21,7 @@
 		 * protection enabled
 		 */
         bootargs = "video=efifb rodata=off";
-		//stdout-path = "serial0:115200n8";
+		stdout-path = "serial0:115200n8";
 
 	};
 
@@ -45,14 +45,14 @@
 			no-map;
 		};
 
-		display_reserved: framebuffer@2a00000 {
-			reg = <0x2a00000 0x000c0000>;
+		display_reserved: framebuffer@3b00000 {
+			reg = <0x3b00000 0x000c0000>;
 			no-map;
 		};
 
-		ramoops@2ffc0000 {
+		ramoops@3a00000 {
 			compatible = "ramoops";
-			reg = <0x2ffc0000 0x40000>;
+			reg = <0x3a00000 0x40000>;
 			// record-size = <0x10000>;
 			console-size = <0x40000>;
 		};
