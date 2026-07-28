@@ -199,6 +199,11 @@
 				label = "flash";
 				default-state = "off";
 			};
+			kbd-backlight {
+				status = "disabled";
+				label = "kdb-backlight";
+				default-state = "off";
+			};
 		};
 	};
 };

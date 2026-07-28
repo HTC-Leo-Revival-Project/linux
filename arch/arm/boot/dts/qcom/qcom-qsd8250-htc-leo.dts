@@ -119,4 +119,8 @@
 			flash {
 				gpios = <&gpio 143 GPIO_ACTIVE_HIGH>;
 			};
+			kbd-backlight {
+				status = "okay";
+				gpios = <&gpio 48 GPIO_ACTIVE_HIGH>;
+			};
 	};
