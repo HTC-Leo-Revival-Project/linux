@@ -113,3 +113,10 @@
 			enable-gpios = <&gpio 89 GPIO_ACTIVE_HIGH>;
 			status = "okay";
 	};
+
+	&flash {
+		status = "enabled";
+		gpios = <&gpio 84 GPIO_ACTIVE_HIGH>;
+	};
+
+

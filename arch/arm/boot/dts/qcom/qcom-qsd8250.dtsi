@@ -190,5 +190,11 @@
 			compatible = "gpio-vibrator";
 			vcc-supply = <&vibrator_vcc>;
 		};
+
+		flash: flash {
+			status = "disabled";
+			compatible = "gpio-leds";
+			label = "flash";
+		};
 	};
 };
