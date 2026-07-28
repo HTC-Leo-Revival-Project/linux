@@ -6,6 +6,8 @@
 
  #include <dt-bindings/interrupt-controller/qcom-sirc.h>
  #include <dt-bindings/interrupt-controller/qcom-vic.h>
+ #include <dt-bindings/gpio/gpio.h>
+ #include <dt-bindings/input/input.h>
  
 /dts-v1/;
 
@@ -28,12 +30,6 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
-		}; 
-
-		uart1_clk: uart1_clk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <1843200>;
 		};
 
 		sleep_clk: sleep_clk {
@@ -155,23 +151,39 @@
 		status = "okay";
 		};
 
-		gpio1: gpio@0xA9000000 {
-			compatible = "msm,qsd8k-gpio";
-			reg = <0xA9000000 0x00100000>,
-	      		  <0xA9100000 0x00100000>;
-			interrupt-parent = <&sirc>;
-			interrupts = <9 10>;
-			gpio-mux-pins = <165>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
+			gpio: gpio@a9000000 {
+		compatible = "qcom,qsd8250-gpio";
+		reg = <0xa9000000 0x1000>,
+		      <0xa9100000 0x1000>,
+		      <0xa8e00000 0x1000>,
+		      <0xa8f00000 0x1000>;
+		reg-names = "gpio1", "gpio2", "gpio1-cfg", "gpio2-cfg";
 
-qsd8250_clk: clk@0 {
+		interrupt-parent = <&sirc>;
+		interrupts = <9>, <10>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+qsd8250_clk: clk@a8600000 {
     compatible = "qcom,qsd8250-clk";
-    #clock-cells = <1>;
+	reg = <0xA8600000 0x00100000>;
+	#clock-cells = <1>;
     qcom,clk-ids = <31>; /* UART1 clock ID */
+};
+
+gpio-keys {
+	compatible = "gpio-keys";
+
+	power {
+		label = "Power";
+		linux,code = <KEY_POWER>;
+		gpios = <&gpio 94 GPIO_ACTIVE_LOW>;
+	};
 };
 	};
 
