@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -8,11 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -27,8 +23,8 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/cacheflush.h>
 
-#include <asm/cacheflush.h>
 #include <asm/exception.h>
 #include <asm/irq.h>
 
@@ -42,11 +38,12 @@ struct msm_sirc {
 	u32					wake_enable;
 	u32					mask;
 	u32					nr_sirc_irqs;
-	u32 				first_sirc_irq;
+	u32					first_sirc_irq;
 };
 
 /* Mask off the given interrupt. Keep the int_enable mask in sync with
-   the enable reg, so it can be restored after power collapse. */
+ *   the enable reg, so it can be restored after power collapse.
+ */
 static void sirc_irq_mask(struct irq_data *d)
 {
 	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
@@ -54,11 +51,11 @@ static void sirc_irq_mask(struct irq_data *d)
 
 	writel(mask, sirc->base + SIRC_INT_ENABLE_CLEAR);
 	sirc->int_enable &= ~mask;
-	return;
 }
 
 /* Unmask the given interrupt. Keep the int_enable mask in sync with
-   the enable reg, so it can be restored after power collapse. */
+ *   the enable reg, so it can be restored after power collapse.
+ */
 static void sirc_irq_unmask(struct irq_data *d)
 {
 	struct msm_sirc *sirc = irq_data_get_irq_chip_data(d);
@@ -66,7 +63,6 @@ static void sirc_irq_unmask(struct irq_data *d)
 
 	writel(mask, sirc->base + SIRC_INT_ENABLE_SET);
 	sirc->int_enable |= mask;
-	return;
 }
 
 static void sirc_irq_ack(struct irq_data *d)
@@ -75,7 +71,6 @@ static void sirc_irq_ack(struct irq_data *d)
 	unsigned int mask = BIT(d->hwirq);
 
 	writel(mask, sirc->base + SIRC_INT_CLEAR);
-	return;
 }
 
 static int sirc_irq_set_wake(struct irq_data *d, unsigned int on)
@@ -139,9 +134,8 @@ static void sirc_irq_handler(struct irq_desc *desc)
 		return;
 
 	for (sirq = 0; (sirq < sirc->nr_sirc_irqs); sirq++) {
-		if((status & (1U << sirq)) != 0) {
+		if ((status & (1U << sirq)) != 0)
 			generic_handle_domain_irq(sirc->domain, sirq);
-		}
 	}
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
@@ -159,7 +153,7 @@ static struct irq_chip sirc_irq_chip = {
 };
 
 static int msm_sirc_map(struct irq_domain *d, unsigned int irq,
-		       irq_hw_number_t hw)
+						irq_hw_number_t hw)
 {
 	irq_set_chip_and_handler(irq, &sirc_irq_chip, handle_edge_irq);
 	irq_set_chip_data(irq, d->host_data);
@@ -175,24 +169,23 @@ static const struct irq_domain_ops msm_sirc_irqchip_intc_ops = {
 
 static int __init msm_init_sirc(struct device_node *node, struct device_node *parent)
 {
-	int irq_base;
-
+	int irq_base, ret;
 	struct msm_sirc *sirc;
-	sirc = kzalloc(sizeof(*sirc), GFP_KERNEL);
+
+	sirc = (struct msm_sirc *)kzalloc_obj(sizeof(*sirc), GFP_KERNEL);
 	if (!sirc)
 		return -ENOMEM;
 
 	sirc->base = of_iomap(node, 0);
-    if (!sirc->base){
+	if (!sirc->base)
 		panic("%pOF: unable to map sirc interrupt registers\n", node);
-	}
 
-	int ret = of_property_read_u32(node, "first-sirc-irq", &sirc->first_sirc_irq);
+	ret = of_property_read_u32(node, "first-sirc-irq", &sirc->first_sirc_irq);
 	if (ret || sirc->first_sirc_irq < 0) {
 		pr_err("%pOF: unable to read first-sirc-irq property\n", node);
 		return ret;
 	}
-	
+
 	ret = of_property_read_u32(node, "nr-sirc-irqs", &sirc->nr_sirc_irqs);
 	if (ret || sirc->nr_sirc_irqs < 0) {
 		pr_err("%pOF: unable to read nr-sirc-irqs property\n", node);
@@ -205,14 +198,13 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 		return ret;
 	}
 
-
-    irq_base = irq_alloc_descs(-1, sirc->first_sirc_irq, sirc->nr_sirc_irqs, 0);
+	irq_base = irq_alloc_descs(-1, sirc->first_sirc_irq, sirc->nr_sirc_irqs, 0);
 	if (irq_base < 0) {
 		pr_warn("Couldn't allocate IRQ numbers\n");
-        irq_base = 0;
+		irq_base = 0;
 	}
 
-    sirc->domain = irq_domain_create_legacy(of_fwnode_handle(node), sirc->nr_sirc_irqs, sirc->first_sirc_irq, 0,
+	sirc->domain = irq_domain_create_legacy(of_fwnode_handle(node), sirc->nr_sirc_irqs, sirc->first_sirc_irq, 0,
 					       &msm_sirc_irqchip_intc_ops, sirc);
 	if (!sirc->domain)
 		panic("Unable to add SIRC IRQ domain\n");
@@ -224,10 +216,10 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 		return -EINVAL;
 	}
 
-    if (request_irq(sirc->parent_irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
+	if (request_irq(sirc->parent_irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
 		pr_err("Failed to register cascade interrupt\n");
 
-    irq_set_chained_handler_and_data(sirc->parent_irq, 
+		irq_set_chained_handler_and_data(sirc->parent_irq,
 					sirc_irq_handler,
 					sirc);
 
