@@ -289,6 +289,12 @@ config KEYBOARD_MATRIX
 	  To compile this driver as a module, choose M here: the
 	  module will be called matrix_keypad.
 
+config KEYBOARD_HTC_QSD8250
+	tristate "HTC QSD8250 matrix keypad"
+	depends on INPUT
+	help
+	  HTC Passion/Bravo/Leo keypad scanner
+
 config KEYBOARD_HIL_OLD
 	tristate "HP HIL keyboard support (simple driver)"
 	depends on GSC || HP300
