@@ -15,9 +15,10 @@
 struct qsd8250_clk {
     struct clk_hw hw;
     unsigned int id;  /* PCOM clock ID */
+    unsigned long rate; /* Cached rate for this clock */
 };
 
-static const unsigned long uart1_clk_rates[] = { 1843200UL, 0 };
+static const unsigned long uart1_clk_rates[] = { 1843200, 0 };
 
 #define to_qsd8250_clk(_hw) container_of(_hw, struct qsd8250_clk, hw)
 
@@ -27,7 +28,7 @@ static int qsd8250_clk_enable(struct clk_hw *hw)
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
     if (c->id == PCOM_EBI1_CLK || c->id == PCOM_EBI1_FIXED_CLK) { // EBI CLOCKS ARE ALWAYS ON, DO NOT ENABLE
         pr_info("Clock ID %u is EBI or EBI_FIXED, skipping enable\n", c->id);
-        return 0;
+        return -1;
     }
     int ret = pcom_clock_enable( c->id);
     if (ret < 0)
@@ -51,12 +52,14 @@ static void qsd8250_clk_disable(struct clk_hw *hw)
         pr_info("Disabled clock ID %u\n", c->id);
 }
 
-static int qsd8250_clk_get_rate(struct clk_hw *hw,struct clk_rate_request *req)
+static int qsd8250_clk_determine_rate(struct clk_hw *hw,struct clk_rate_request *req)
 {
-    struct qsd8250_clk *c = to_qsd8250_clk(hw);
-    int rate = pcom_clock_get_rate(c->id);
-    pr_info("Clock ID %u rate is %d\n", c->id, rate);
-    return (rate > 0) ? rate : 0;
+    /*
+	 * PCOM handles rate rounding and we don't have a way to
+	 * know what the rate will be, so just return whatever
+	 * rate is requested.
+	 */
+	return 0;
 }
 
 static int qsd8250_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -64,39 +67,30 @@ static int qsd8250_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
     int id = c->id;
-    return pcom_clock_set_rate(id, rate);
+    c->rate = rate;
+    return pcom_clock_set_rate(id, (uint)rate);
 }
 
-long qsd8250_clk_round_rate(struct clk_hw *hw, unsigned long rate, unsigned long *p_rate)
+static unsigned long qsd8250_clk_recalc_rate(struct clk_hw *hw,
+                                             unsigned long parent_rate)
 {
-    unsigned long best = uart1_clk_rates[0];
-    unsigned long diff, best_diff = ~0UL;
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(uart1_clk_rates); i++) {
-        diff = (rate > uart1_clk_rates[i]) ? rate - uart1_clk_rates[i] : uart1_clk_rates[i] - rate;
-        if (diff < best_diff) {
-            best_diff = diff;
-            best = uart1_clk_rates[i];
-        }
-    }
-
-    return best;
+    struct qsd8250_clk *c = to_qsd8250_clk(hw);
+    return c->rate;
 }
 
-static unsigned long qsd8250_clk_recalc_rate(struct clk_hw *hw, unsigned long p_rate)
+static int qsd8250_clk_is_enabled(struct clk_hw *hw)
 {
-
-	return p_rate;
+    struct qsd8250_clk *c = to_qsd8250_clk(hw);
+    return pcom_clock_is_enabled(c->id);
 }
 
 static const struct clk_ops qsd8250_clk_ops = {
     .enable = qsd8250_clk_enable,
     .disable = qsd8250_clk_disable,
     .set_rate = qsd8250_clk_set_rate,
-    .round_rate = qsd8250_clk_round_rate,
     .recalc_rate = qsd8250_clk_recalc_rate,
-    .determine_rate = qsd8250_clk_get_rate,
+    .determine_rate = qsd8250_clk_determine_rate,
+    .is_enabled = qsd8250_clk_is_enabled,
 };
 
 static int qsd8250_clk_probe(struct platform_device *pdev)
@@ -121,6 +115,7 @@ static int qsd8250_clk_probe(struct platform_device *pdev)
     if (!is_pcom_probed()) {
         return -EPROBE_DEFER;
     }
+
     for (i = 0; i < nclks; i++) {
         u32 id;
         struct clk_init_data *init;
@@ -161,8 +156,6 @@ static int qsd8250_clk_probe(struct platform_device *pdev)
         }
         clk_data->hws[i] = &clk->hw;
 
-        // pr_info("clk %u init=%p ops=%p\n",
-        //         id, clk->hw.init, clk->hw.init->ops);
     }
 
     clk_data->num = nclks;
@@ -173,6 +166,8 @@ static int qsd8250_clk_probe(struct platform_device *pdev)
         pr_err("clk provider registration failed\n");
     else
         pr_info("clk provider registered (%d clocks)\n", clk_data->num);
+
+    
 
     return 0;
 }
