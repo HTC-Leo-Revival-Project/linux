@@ -140,87 +140,86 @@
 		};
 
 		msm_proc_comm@ac100000 {
-    	compatible = "qcom,msm-proc-comm";
-    	reg = <0x00100000 0x00100000>, /* shared-ram-base */
-          	  <0xac100000 0x100>; /* csr-base */
-    	reg-names = "shared-ram-base", "csr-base";
+    		compatible = "qcom,msm-proc-comm";
+    		reg = <0x00100000 0x00100000>, /* shared-ram-base */
+          	  	  <0xac100000 0x100>; /* csr-base */
+    		reg-names = "shared-ram-base", "csr-base";
 		};
 
 		restart {
-		compatible = "qcom,pshold";
-		status = "okay";
+			compatible = "qcom,pshold";
+			status = "okay";
 		};
 
-			gpio: gpio@a9000000 {
-		compatible = "qcom,qsd8250-gpio";
-		reg = <0xa9000000 0x1000>,
-		      <0xa9100000 0x1000>,
-		      <0xa8e00000 0x1000>,
-		      <0xa8f00000 0x1000>;
-		reg-names = "gpio1", "gpio2", "gpio1-cfg", "gpio2-cfg";
+		gpio: gpio@a9000000 {
+			compatible = "qcom,qsd8250-gpio";
+			reg = <0xa9000000 0x1000>,
+		      	  <0xa9100000 0x1000>,
+		      	  <0xa8e00000 0x1000>,
+		      	  <0xa8f00000 0x1000>;
+			reg-names = "gpio1", "gpio2", "gpio1-cfg", "gpio2-cfg";
 
-		interrupt-parent = <&sirc>;
-		interrupts = <9>, <10>;
+			interrupt-parent = <&sirc>;
+			interrupts = <9>, <10>;
 
-		gpio-controller;
-		#gpio-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 
-		interrupt-controller;
-		#interrupt-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		qsd8250_clk: clk@a8600000 {
+    		compatible = "qcom,qsd8250-clk";
+			reg = <0xA8600000 0x00100000>;
+			#clock-cells = <1>;
+    		qcom,clk-ids = <31>; /* UART1 clock ID */
+		};
+
+		gpio-keys {
+			compatible = "gpio-keys";
+
+			power {
+				label = "Power";
+				linux,code = <KEY_POWER>;
+				gpios = <&gpio 94 GPIO_ACTIVE_LOW>;
+			};
+				};
+
+		matrix_keys {
+			compatible = "htc,qsd8250-matrix-keys";
+
+			poll-interval = <20>;
+
+			row-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>,
+		    			<&gpio 32 GPIO_ACTIVE_HIGH>,
+		    			<&gpio 33 GPIO_ACTIVE_HIGH>;
+
+			col-gpios = <&gpio 41 GPIO_ACTIVE_HIGH>,
+		    			<&gpio 42 GPIO_ACTIVE_HIGH>;
+
+			keymap {
+				enter {
+					row = <1>;
+					col = <0>;
+					linux,code = <KEY_ENTER>;
+					active-low;
+				};
+
+				volume-up {
+					row = <2>;
+					col = <1>;
+					linux,code = <KEY_VOLUMEUP>;
+					active-low;
+				};
+
+				volume-down {
+					row = <2>;
+					col = <0>;
+					linux,code = <KEY_VOLUMEDOWN>;
+					active-low;
+				};
+			};
+		};
 	};
-
-qsd8250_clk: clk@a8600000 {
-    compatible = "qcom,qsd8250-clk";
-	reg = <0xA8600000 0x00100000>;
-	#clock-cells = <1>;
-    qcom,clk-ids = <31>; /* UART1 clock ID */
-};
-
-gpio-keys {
-	compatible = "gpio-keys";
-
-	power {
-		label = "Power";
-		linux,code = <KEY_POWER>;
-		gpios = <&gpio 94 GPIO_ACTIVE_LOW>;
-	};
-		};
-
-matrix_keys {
-	compatible = "htc,qsd8250-matrix-keys";
-
-	poll-interval = <20>;
-
-	row-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>,
-		    <&gpio 32 GPIO_ACTIVE_HIGH>,
-		    <&gpio 33 GPIO_ACTIVE_HIGH>;
-
-	col-gpios = <&gpio 41 GPIO_ACTIVE_HIGH>,
-		    <&gpio 42 GPIO_ACTIVE_HIGH>;
-
-	keymap {
-		enter {
-			row = <1>;
-			col = <0>;
-			linux,code = <KEY_ENTER>;
-			active-low;
-		};
-
-		volume-up {
-			row = <2>;
-			col = <1>;
-			linux,code = <KEY_VOLUMEUP>;
-			active-low;
-		};
-
-		volume-down {
-			row = <2>;
-			col = <0>;
-			linux,code = <KEY_VOLUMEDOWN>;
-			active-low;
-		};
-	};
-};
-	};
-
 };
