@@ -114,7 +114,9 @@
 			status = "okay";
 	};
 
-	&flash {
-		status = "enabled";
-		gpios = <&gpio 143 GPIO_ACTIVE_HIGH>;
+	&leds {
+		status = "okay";
+			flash {
+				gpios = <&gpio 143 GPIO_ACTIVE_HIGH>;
+			};
 	};
