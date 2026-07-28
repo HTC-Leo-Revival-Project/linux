@@ -52,7 +52,7 @@ static int msm_restart_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id of_msm_restart_match[] = {
-    { .compatible = "qcom,pshold", },
+    { .compatible = "qcom,pshold-proc_comm", },
     {},
 };
 MODULE_DEVICE_TABLE(of, of_msm_restart_match);
