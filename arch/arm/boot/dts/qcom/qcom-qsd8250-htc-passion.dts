@@ -108,3 +108,8 @@
 	&blsp1_uart1 {
 		status = "okay";
 	};
+
+	&vibrator {
+			enable-gpios = <&gpio 89 GPIO_ACTIVE_HIGH>;
+			status = "okay";
+	};

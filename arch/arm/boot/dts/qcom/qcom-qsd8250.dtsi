@@ -39,6 +39,15 @@
 		};
 	};
 
+    vibrator_vcc: vibrator-vcc {
+        compatible = "regulator-fixed";
+        regulator-name = "vibrator-vcc";
+        regulator-min-microvolt = <3000000>;
+        regulator-max-microvolt = <3000000>;
+        regulator-always-on;
+        regulator-boot-on;
+    };
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -175,7 +184,11 @@
 			#clock-cells = <1>;
     		qcom,clk-ids = <31>; /* UART1 clock ID */
 		};
-		
+
+		vibrator: vibrator {
+			status = "disabled";
+			compatible = "gpio-vibrator";
+			vcc-supply = <&vibrator_vcc>;
 		};
 	};
 };
