@@ -203,5 +203,30 @@
 				default-state = "off";
 			};
 		};
+
+    i2c0: i2c@a9900000 {
+		status = "disabled";
+        compatible = "qcom,qsd8250-i2c";
+        reg = <0xa9900000 0x1000>;
+		interrupt-parent = <&intc>;
+        interrupts = <34>;
+        clock-names = "core";
+        clock-frequency = <400000>;
+        sda-gpios = <&gpio 96 GPIO_ACTIVE_HIGH>;
+        scl-gpios = <&gpio 95 GPIO_ACTIVE_HIGH>;
+		qcom,sda-pin = <96>;
+        qcom,scl-pin = <95>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+ 
+        microp@66 {
+            compatible = "htc,qsd8250-microp";
+            reg = <0x66>;
+            gpio-reset-gpios = <&gpio 91 1>; /* GPIO_ACTIVE_LOW */
+ 
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };
 	};
 };
