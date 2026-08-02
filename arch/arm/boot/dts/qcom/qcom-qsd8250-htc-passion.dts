@@ -105,6 +105,15 @@
 	};
 };
 
+	&qsd8250_vreg {
+		status = "okay";
+
+		gp2_jogball: gp2 {
+			regulator-name = "gp2";
+			qcom,vreg-id = <21>;
+		};
+	};
+
 	&blsp1_uart1 {
 		status = "okay";
 		interrupts = <0>;
