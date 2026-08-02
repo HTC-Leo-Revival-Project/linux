@@ -12,6 +12,8 @@
 #include <linux/mach-msm/msm-proc_comm.h>
 #include <linux/mach-msm/pcom_clocks.h>
 
+const struct device *pcom_clk_dev;
+
 struct qsd8250_clk {
     struct clk_hw hw;
     unsigned int id;  /* PCOM clock ID */
@@ -27,14 +29,14 @@ static int qsd8250_clk_enable(struct clk_hw *hw)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
     if (c->id == PCOM_EBI1_CLK || c->id == PCOM_EBI1_FIXED_CLK) { // EBI CLOCKS ARE ALWAYS ON, DO NOT ENABLE
-        pr_info("Clock ID %u is EBI or EBI_FIXED, skipping enable\n", c->id);
+        dev_info(pcom_clk_dev, "Clock ID %u is EBI or EBI_FIXED, skipping enable\n", c->id);
         return -1;
     }
-    int ret = pcom_clock_enable( c->id);
+    int ret = pcom_clock_enable(c->id);
     if (ret < 0)
-        pr_err("Failed to enable clock ID %u", c->id);
+        dev_err(pcom_clk_dev, "Failed to enable clock ID %u", c->id);
     else
-        pr_info("Enabled clock ID %u\n", c->id);
+        dev_info(pcom_clk_dev, "Enabled clock ID %u\n", c->id);
     return ret;
 }
 
@@ -42,14 +44,14 @@ static void qsd8250_clk_disable(struct clk_hw *hw)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
     if (c->id == PCOM_EBI1_CLK || c->id == PCOM_EBI1_FIXED_CLK) { // EBI CLOCKS ARE ALWAYS ON, DO NOT DISABLE
-        pr_info("Clock ID %u is EBI or EBI_FIXED, skipping disable\n", c->id);
+        dev_info(pcom_clk_dev, "Clock ID %u is EBI or EBI_FIXED, skipping disable\n", c->id);
         return;
     }
     int ret = pcom_clock_disable(c->id);
     if (ret < 0)
-        pr_err("Failed to disable clock ID %u", c->id);
+        dev_err(pcom_clk_dev, "Failed to disable clock ID %u", c->id);
     else
-        pr_info("Disabled clock ID %u\n", c->id);
+        dev_info(pcom_clk_dev, "Disabled clock ID %u\n", c->id);
 }
 
 static int qsd8250_clk_determine_rate(struct clk_hw *hw,struct clk_rate_request *req)
@@ -100,6 +102,8 @@ static int qsd8250_clk_probe(struct platform_device *pdev)
     struct qsd8250_clk *clk;
     int nclks, i;
 
+    pcom_clk_dev = &pdev->dev;
+
     /* Count clocks from DT */
     nclks = of_property_count_u32_elems(np, "qcom,clk-ids");
     if (nclks <= 0)
@@ -147,11 +151,11 @@ static int qsd8250_clk_probe(struct platform_device *pdev)
         init->num_parents = 0;
 
         clk->hw.init = init;
-        pr_info("Registering clock ID %u\n", id);
+        dev_info(pcom_clk_dev, "Registering clock ID %u\n", id);
 
         int err = clk_hw_register(NULL, &clk->hw);
         if (err < 0) {
-            pr_err("Failed to register clock ID %u", id);
+            dev_err(pcom_clk_dev, "Failed to register clock ID %u", id);
             return err;
         }
         clk_data->hws[i] = &clk->hw;
@@ -163,9 +167,9 @@ static int qsd8250_clk_probe(struct platform_device *pdev)
     /* Register provider */
     int ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
     if (ret)
-        pr_err("clk provider registration failed\n");
+        dev_err(pcom_clk_dev, "clk provider registration failed\n");
     else
-        pr_info("clk provider registered (%d clocks)\n", clk_data->num);
+        dev_info(pcom_clk_dev, "clk provider registered (%d clocks)\n", clk_data->num);
 
     
 
