@@ -145,6 +145,15 @@
     &i2c0 {
 		status = "okay";
         clocks = <&qsd8250_clk 0>;
+		microp@66 {
+			led@2 {
+				status = "okay";
+			};
+
+			led@3 {
+				status = "okay";
+			};
+        };
     };
 	
 
