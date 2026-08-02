@@ -1943,6 +1943,8 @@ CONFIG_I2C_QUP=y
 # Other I2C/SMBus bus drivers
 #
 # CONFIG_I2C_VIRTIO is not set
+CONFIG_I2C_QSD8250=y
+CONFIG_I2C_HTC_MICROP=y
 # end of I2C Hardware Bus support
 
 # CONFIG_I2C_STUB is not set
