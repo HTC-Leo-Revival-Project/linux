@@ -127,6 +127,11 @@
 		status = "okay";
     	qcom,clk-ids = <9 31>;
 		};
+
+    &i2c0 {
+		status = "okay";
+        clocks = <&qsd8250_clk 0>;
+    };
 	
 
 
