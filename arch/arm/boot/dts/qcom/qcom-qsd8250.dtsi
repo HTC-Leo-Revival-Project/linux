@@ -231,6 +231,22 @@
  
             #address-cells = <1>;
             #size-cells = <0>;
+			led@1 {
+				compatible = "htc,microp-led";
+				reg = <1>;
+			};
+
+			led@2 {
+				status = "disabled";
+				compatible = "htc,microp-jogball-led";
+				reg = <2>;
+			};
+
+			led@3 {
+				status = "disabled";
+				compatible = "htc,microp-kbd-backlight";
+				reg = <3>;
+			};
         };
     };
 	};
