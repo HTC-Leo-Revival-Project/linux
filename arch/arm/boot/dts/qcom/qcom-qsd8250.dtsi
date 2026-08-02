@@ -136,8 +136,6 @@
 			compatible = "qcom,msm-uart";
 			reg = <0xa9a00000 0x1000>;
 			interrupt-parent = <&sirc>;
-			interrupts = <0>;
-			clocks = <&qsd8250_clk 0>;
 			clock-names = "core";
 		};
 
@@ -180,10 +178,10 @@
 		};
 
 		qsd8250_clk: clk@a8600000 {
+			status = "disabled";
     		compatible = "qcom,qsd8250-clk";
 			reg = <0xA8600000 0x00100000>;
 			#clock-cells = <1>;
-    		qcom,clk-ids = <31>; /* UART1 clock ID */
 		};
 
 		vibrator: vibrator {

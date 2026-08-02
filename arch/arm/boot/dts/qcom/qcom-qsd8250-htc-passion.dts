@@ -107,6 +107,8 @@
 
 	&blsp1_uart1 {
 		status = "okay";
+		interrupts = <0>;
+		clocks = <&qsd8250_clk 1>;
 	};
 
 	&vibrator {
@@ -120,5 +122,11 @@
 				gpios = <&gpio 84 GPIO_ACTIVE_HIGH>;
 			};
 	};
+
+	&qsd8250_clk {
+		status = "okay";
+    	qcom,clk-ids = <9 31>;
+		};
+	
 
 
