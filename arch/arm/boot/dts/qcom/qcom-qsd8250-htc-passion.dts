@@ -112,6 +112,11 @@
 			regulator-name = "gp2";
 			qcom,vreg-id = <21>;
 		};
+
+		gp6_sdcard: gp6 {
+			regulator-name = "gp6";
+			qcom,vreg-id = <23>;
+		};
 	};
 
 	&blsp1_uart1 {
