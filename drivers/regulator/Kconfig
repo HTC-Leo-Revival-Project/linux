@@ -1888,4 +1888,14 @@ config REGULATOR_QCOM_LABIBB
 	  boost regulator and IBB can be used as a negative boost regulator
 	  for LCD display panel.
 
+config REGULATOR_QSD8250
+	tristate "Qualcomm QSD8250 proc_comm regulator driver"
+	depends on ARCH_QCOM && MFD_MSM_PROC_COMM
+	help
+	  Support for Qualcomm QSD8250 regulators controlled through
+	  the proc_comm interface.
+
+	  This driver provides regulator framework support for legacy
+	  QSD8250 PMIC regulators.
+
 endif
