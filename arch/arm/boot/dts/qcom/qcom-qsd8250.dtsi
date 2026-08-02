@@ -72,6 +72,11 @@
 		#size-cells = <1>;
 		ranges;
 
+	qsd8250_vreg: regulator-controller {
+		compatible = "qcom,qsd8250-vreg";
+		status = "disabled";
+	};
+
 		intc: interrupt-controller@ac000000 {
 			compatible = "qcom,msm-vic";
 			interrupt-controller;
