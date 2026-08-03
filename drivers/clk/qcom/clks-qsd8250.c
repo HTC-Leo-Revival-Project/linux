@@ -35,7 +35,7 @@ static int qsd8250_clk_enable(struct clk_hw *hw)
     int ret = pcom_clock_enable(c->id);
     if (ret < 0)
         dev_err(pcom_clk_dev, "Failed to enable clock ID %u", c->id);
-    else
+    else if (c-> id != 21 && c->id != 22 && c->id != 9) // Dont log sdcard and i2c clocks they are noisy
         dev_info(pcom_clk_dev, "Enabled clock ID %u\n", c->id);
     return ret;
 }
@@ -50,7 +50,7 @@ static void qsd8250_clk_disable(struct clk_hw *hw)
     int ret = pcom_clock_disable(c->id);
     if (ret < 0)
         dev_err(pcom_clk_dev, "Failed to disable clock ID %u", c->id);
-    else
+    else if (c-> id != 21 && c->id != 22 && c->id != 9) // Dont log sdcard and i2c clocks they are noisy
         dev_info(pcom_clk_dev, "Disabled clock ID %u\n", c->id);
 }
 
