@@ -43,8 +43,8 @@ static int qsd8250_clk_enable(struct clk_hw *hw)
 static void qsd8250_clk_disable(struct clk_hw *hw)
 {
     struct qsd8250_clk *c = to_qsd8250_clk(hw);
-    if (c->id == PCOM_EBI1_CLK || c->id == PCOM_EBI1_FIXED_CLK) { // EBI CLOCKS ARE ALWAYS ON, DO NOT DISABLE
-        dev_info(pcom_clk_dev, "Clock ID %u is EBI or EBI_FIXED, skipping disable\n", c->id);
+    if (c->id == PCOM_EBI1_CLK || c->id == PCOM_EBI1_FIXED_CLK || c->id == 19 || c->id == 21) { // EBI CLOCKS ARE ALWAYS ON, DO NOT DISABLE
+        dev_info(pcom_clk_dev, "Clock ID %u is EBI or EBI_FIXED or SDC1, skipping disable\n", c->id);
         return;
     }
     int ret = pcom_clock_disable(c->id);
