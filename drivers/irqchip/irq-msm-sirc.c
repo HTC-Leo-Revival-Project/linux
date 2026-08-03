@@ -219,7 +219,7 @@ static int __init msm_init_sirc(struct device_node *node, struct device_node *pa
 	if (request_irq(sirc->parent_irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
 		pr_err("Failed to register cascade interrupt\n");
 
-		irq_set_chained_handler_and_data(sirc->parent_irq,
+	irq_set_chained_handler_and_data(sirc->parent_irq,
 					sirc_irq_handler,
 					sirc);
 
