@@ -11,6 +11,7 @@
  * Copyright (C) 2026 J0SH1X <aljoshua.hell@gmail.com>
  */
 
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
@@ -32,8 +33,15 @@
 
 struct qsd_vreg {
 	struct regulator_desc desc;
+
 	unsigned int id;
 	unsigned int refcnt;
+
+	unsigned int min_uV;
+	unsigned int max_uV;
+
+	unsigned int cur_uV;
+
 	struct mutex lock;
 };
 
@@ -91,24 +99,44 @@ out:
 	return ret;
 }
 
-static int qsd_vreg_set_voltage(struct regulator_dev *rdev,
-				int min_uV,
-				int max_uV,
-				unsigned *selector)
+static int qsd_vreg_get_voltage_sel(struct regulator_dev *rdev)
+{
+	struct qsd_vreg *vreg = rdev_get_drvdata(rdev);
+
+	return (vreg->cur_uV - vreg->desc.min_uV) /
+		vreg->desc.uV_step;
+}
+
+static int qsd_vreg_set_voltage_sel(struct regulator_dev *rdev,
+				    unsigned int sel)
 {
 	struct qsd_vreg *vreg = rdev_get_drvdata(rdev);
 	unsigned int id = vreg->id;
 	unsigned int mv;
+	unsigned int uv;
 
-	mv = min_uV / 1000;
+	uv = vreg->desc.min_uV +
+	     sel * vreg->desc.uV_step;
 
-	return msm_proc_comm(PCOM_VREG_SET_LEVEL, &id, &mv);
+	mv = DIV_ROUND_CLOSEST(uv, 1000);
+
+	if (msm_proc_comm(PCOM_VREG_SET_LEVEL, &id, &mv))
+		return -EIO;
+
+	vreg->cur_uV = uv;
+
+	return 0;
 }
 
 static const struct regulator_ops qsd_vreg_ops = {
 	.enable = qsd_vreg_enable,
 	.disable = qsd_vreg_disable,
-	.set_voltage = qsd_vreg_set_voltage,
+
+	.set_voltage_sel = qsd_vreg_set_voltage_sel,
+	.get_voltage_sel = qsd_vreg_get_voltage_sel,
+
+	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 };
 
 static int qsd8250_vreg_probe(struct platform_device *pdev)
@@ -146,26 +174,52 @@ static int qsd8250_vreg_probe(struct platform_device *pdev)
 				     "qcom,vreg-id",
 				     &vreg->id);
 
-		mutex_init(&vreg->lock);
+mutex_init(&vreg->lock);
 
-		vreg->desc.name = child->name;
-		vreg->desc.id = i;
-		vreg->desc.ops = &qsd_vreg_ops;
-		vreg->desc.type = REGULATOR_VOLTAGE;
-		vreg->desc.owner = THIS_MODULE;
+of_property_read_u32(child,
+		     "regulator-min-microvolt",
+		     &vreg->min_uV);
 
-		cfg.dev = &pdev->dev;
-		cfg.driver_data = vreg;
-		cfg.of_node = child;
+of_property_read_u32(child,
+		     "regulator-max-microvolt",
+		     &vreg->max_uV);
 
-		rdev = devm_regulator_register(&pdev->dev,
-					       &vreg->desc,
-					       &cfg);
+if (!vreg->min_uV)
+	vreg->min_uV = 750000;
+
+if (!vreg->max_uV)
+	vreg->max_uV = 3300000;
+
+vreg->cur_uV = vreg->min_uV;
+
+vreg->desc.name = child->name;
+vreg->desc.id = i;
+vreg->desc.ops = &qsd_vreg_ops;
+vreg->desc.type = REGULATOR_VOLTAGE;
+
+vreg->desc.min_uV = vreg->min_uV;
+vreg->desc.uV_step = 1000;
+vreg->desc.n_voltages =
+	(vreg->max_uV - vreg->min_uV) / 1000 + 1;
+
+vreg->desc.owner = THIS_MODULE;
+
+cfg.dev = &pdev->dev;
+cfg.driver_data = vreg;
+cfg.of_node = child;
+
+dev_info(&pdev->dev,
+	 "%s: id=%u voltage=%u-%uuV steps=%u\n",
+	 vreg->desc.name,
+	 vreg->id,
+	 vreg->min_uV,
+	 vreg->max_uV,
+	 vreg->desc.n_voltages);
+
+		rdev = devm_regulator_register(&pdev->dev,&vreg->desc,&cfg);
 
 		if (IS_ERR(rdev)) {
-			dev_err(&pdev->dev,
-				"failed registering %s\n",
-				child->name);
+			dev_err(&pdev->dev,"failed registering %s\n",child->name);
 			return PTR_ERR(rdev);
 		}
 
