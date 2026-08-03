@@ -249,5 +249,97 @@
 			};
         };
     };
+
+	jogball: jogball {
+		compatible = "htc,jogball";
+		status = "disabled";
+	};
+
+/* QSD8x50 ULPI PHY */
+        hsusb_phy: phy@a0800000 {
+			compatible = "qcom,qsd8x50-usb-phy";
+			reg = <0xa0800000 0x200>;
+
+			/* PCOM ID 52: P_USB_PHY_CLK */
+			clocks = <&qsd8250_clk 4>;
+			clock-names = "phy";
+
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+        /* ChipIdea USB Peripheral Core */
+        usb: usb@a0800000 {
+            compatible = "qcom,ci-hdrc-msm", "chipidea,usb2";
+            reg = <0xa0800000 0x200>;
+			interrupt-parent = <&intc>;
+            interrupts = <58>;
+
+            clocks = <&qsd8250_clk 2>, <&qsd8250_clk 3>;
+            clock-names = "core", "iface";
+
+            phys = <&hsusb_phy>;
+            phy-names = "usb-phy";
+            phy_type = "ulpi";
+            dr_mode = "peripheral"; /* Forces gadget mode */
+
+            ahb-burst-config = <0x0>;
+            ahb-mode-config = <0x0>;
+            disable-streaming;
+
+            status = "disabled";
+        };
+
+	sdcc1: mmc@a0300000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		arm,primecell-periphid = <0x00051190>; /* forces variant_qcom_adm, see mmci-qsd8x50-adm-variant.patch */
+		reg = <0xa0300000 0x100000>;
+		interrupt-parent = <&intc>;
+		interrupts = <24>, <25>;
+		clocks = <&qsd8250_clk 5>, <&qsd8250_clk 6>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		status = "disabled";
+	};
+
+	sdcc2: mmc@a0400000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		arm,primecell-periphid = <0x00051190>;
+		reg = <0xa0400000 0x100000>;
+		interrupt-parent = <&intc>;
+		interrupts = <26>, <27>;
+		clocks = <&qsd8250_clk 7>, <&qsd8250_clk 8>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		status = "disabled";
+	};
+
+	sdcc3: mmc@a0500000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		arm,primecell-periphid = <0x00051190>;
+		reg = <0xa0500000 0x100000>;
+		interrupt-parent = <&intc>;
+		interrupts = <10>, <11>;
+		clocks = <&qsd8250_clk 9>, <&qsd8250_clk 10>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		status = "disabled";
+	};
+
+	sdcc4: mmc@a0600000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		arm,primecell-periphid = <0x00051190>;
+		reg = <0xa0600000 0x100000>;
+		interrupt-parent = <&intc>;
+		interrupts = <12>, <13>;
+		clocks = <&qsd8250_clk 11>, <&qsd8250_clk 12>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		status = "disabled";
+	};
 	};
 };
