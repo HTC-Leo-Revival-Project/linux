@@ -367,6 +367,42 @@ static struct variant_data variant_qcom = {
 	.init			= qcom_variant_init,
 };
 
+/*
+ * Older Qualcomm SDCC IP (MSM7x30, QSD8x50/QSD8x50A) as found on e.g.
+ * the QSD8250 (Nexus One). Register-compatible with variant_qcom above,
+ * but predates the BAM/DML DMA glue introduced for MSM8960 and later --
+ * these parts instead hang off the older "ADM" (Application Data Mover)
+ * DMA engine and must *not* touch the DML register window at
+ * mmci_host->base + 0x800, which does not exist on this silicon.
+ * DMA is wired up via plain dmaengine "rx"/"tx" channels (see qcom,adm
+ * in drivers/dma/qcom/qcom_adm.c) instead of the qcom_dml glue.
+ */
+static struct variant_data variant_qcom_adm = {
+	.fifosize		= 16 * 4,
+	.fifohalfsize		= 8 * 4,
+	.clkreg			= MCI_CLK_ENABLE,
+	.clkreg_enable		= MCI_QCOM_CLK_FLOWENA |
+				  MCI_QCOM_CLK_SELECT_IN_FBCLK,
+	.cmdreg_cpsm_enable	= MCI_CPSM_ENABLE,
+	.cmdreg_lrsp_crc	= MCI_CPSM_RESPONSE | MCI_CPSM_LONGRSP,
+	.cmdreg_srsp_crc	= MCI_CPSM_RESPONSE,
+	.cmdreg_srsp		= MCI_CPSM_RESPONSE,
+	.data_cmd_enable	= MCI_CPSM_QCOM_DATCMD,
+	.datalength_bits	= 24,
+	.datactrl_blocksz	= 11,
+	.datactrl_any_blocksz	= true,
+	.pwrreg_powerup		= MCI_PWR_UP,
+	.f_max			= 50000000,
+	.explicit_mclk_control	= true,
+	.qcom_fifo		= true,
+	.qcom_dml		= false,
+	.mmcimask1		= true,
+	.irq_pio_mask		= MCI_IRQ_PIO_MASK,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
+	.init			= qcom_variant_init,
+};
+
 /* Busy detection for the ST Micro variant */
 static int mmci_card_busy(struct mmc_host *mmc)
 {
@@ -2663,6 +2699,19 @@ static const struct amba_id mmci_ids[] = {
 		.id     = 0x00051180,
 		.mask	= 0x000fffff,
 		.data	= &variant_qcom,
+	},
+	/*
+	 * Older ADM-based Qualcomm SDCC (MSM7x30 / QSD8x50).  This ID has
+	 * not been confirmed against real QSD8x50 PrimeCell ID registers;
+	 * boards should force it explicitly with
+	 *   arm,primecell-periphid = <0x00051190>;
+	 * on the sdcc node until/unless the real HW ID is confirmed and
+	 * this entry's .id/.mask are adjusted to match it.
+	 */
+	{
+		.id     = 0x00051190,
+		.mask	= 0x000fffff,
+		.data	= &variant_qcom_adm,
 	},
 	{ 0, 0 },
 };
