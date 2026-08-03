@@ -1590,4 +1590,23 @@ config I2C_VIRTIO
           This driver can also be built as a module. If so, the module
           will be called i2c-virtio.
 
+config I2C_QSD8250
+		tristate "Qualcomm QSD8250 I2C controller"
+		depends on ARCH_QCOM || COMPILE_TEST
+		depends on I2C && MFD_MSM_PROC_COMM
+		help
+		  This driver supports the I2C controller found on the
+		  Qualcomm MSM7225/MSM7227 SoCs, as used on e.g. the HTC
+		  Leo / HD2.
+ 
+		  This driver can also be built as a module. If so, the
+		  module will be called i2c-msm7225.
+ 
+config I2C_HTC_MICROP
+		tristate "HTC MicroP gpio extender chip"
+		depends on I2C_QSD8250
+		help
+		  Support for the "MicroP" gpio extender chip
+
+
 endmenu

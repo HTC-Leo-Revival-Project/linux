@@ -315,6 +315,10 @@ config APQ_MMCC_8084
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config QCOM_CLK_QSD8K
+    tristate "Qualcomm QSD8K Global Clock Controller"
+    depends on COMMON_CLK_QCOM
+
 config IPQ_APSS_PLL
 	tristate "IPQ APSS PLL"
 	help

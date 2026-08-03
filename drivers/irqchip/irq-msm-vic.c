@@ -1,0 +1,338 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (c) 2007 Google, Inc.
+ * Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2026, Htc Leo Revival Project
+ *
+ */
+
+#include <asm/exception.h>
+#include <dt-bindings/interrupt-controller/qcom-vic.h>
+#include <linux/irqchip.h>
+#include <linux/of_address.h>
+
+#define NO_PENDING_IRQ  (~0U)
+
+struct msm_irq_shadow {
+	u32 int_en[2];
+	u32 int_type;
+	u32 int_polarity;
+	u32 int_select;
+};
+
+struct msm_irq_map {
+	u32 irq;
+	u8 smsm;
+};
+
+struct vic_device {
+	void __iomem *base;
+	struct irq_domain *domain;
+	u32				msm_nr_irqs;
+	u32				nr_vic_irqs;
+	u32				nr_gpio_irqs;
+	u32				vic_num_regs;
+	struct msm_irq_map *irq_map;
+	int irq_map_count;
+};
+
+static struct vic_device vic_data;
+static struct msm_irq_shadow *msm_irq_shadow_reg;
+static u32 *msm_irq_idle_disable;
+static u32 msm_irq_smsm_wake_enable[2];
+
+static int msm_irq_to_smsm(u32 irq)
+{
+	int i;
+
+	if (!vic_data.irq_map)
+		return -EINVAL;
+
+	for (i = 0; i < vic_data.irq_map_count; i++) {
+		if (vic_data.irq_map[i].irq == irq)
+			return vic_data.irq_map[i].smsm;
+		}
+
+	return -ENOENT;
+}
+
+static inline void msm_irq_write_all_regs(void __iomem *base, unsigned int val)
+{
+	for (int i = 0; i < vic_data.vic_num_regs; i++)
+		writel(val, base + (i * 4));
+}
+
+static void msm_irq_ack(struct irq_data *d)
+{
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_CLEAR0, d->irq);
+
+	writel(BIT(d->irq & 31), reg);
+}
+
+static void msm_irq_mask(struct irq_data *d)
+{
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_ENCLEAR0, d->irq);
+	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
+	u32 mask = BIT(d->irq & 31);
+	int smsm_irq = msm_irq_to_smsm(d->irq);
+
+	msm_irq_shadow_reg[index].int_en[0] &= ~mask;
+	writel(mask, reg);
+	if (smsm_irq == 0) {
+		msm_irq_idle_disable[index] &= ~mask;
+	} else {
+		mask = BIT(smsm_irq - 1);
+		msm_irq_smsm_wake_enable[0] &= ~mask;
+	}
+}
+
+static void msm_irq_unmask(struct irq_data *d)
+{
+	void __iomem *reg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_ENSET0, d->irq);
+	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
+	u32 mask = BIT(d->irq & 31);
+	int smsm_irq = msm_irq_to_smsm(d->irq);
+
+	if (smsm_irq < 0)
+		return;
+
+	msm_irq_shadow_reg[index].int_en[0] |= mask;
+	writel(mask, reg);
+
+	if (smsm_irq == 0) {
+		msm_irq_idle_disable[index] |= mask;
+	} else {
+		mask = BIT(smsm_irq - 1);
+		msm_irq_smsm_wake_enable[0] |= mask;
+	}
+}
+
+static int msm_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
+	u32 mask = BIT(d->irq & 31);
+	int smsm_irq = msm_irq_to_smsm(d->irq);
+
+	if (smsm_irq == 0) {
+		pr_err("%s: bad wakeup irq %d\n", __func__, d->irq);
+		return -EINVAL;
+	}
+	if (on)
+		msm_irq_shadow_reg[index].int_en[1] |= mask;
+	else
+		msm_irq_shadow_reg[index].int_en[1] &= ~mask;
+
+	if (smsm_irq == SMSM_FAKE_IRQ)
+		return 0;
+
+	mask = BIT(smsm_irq - 1);
+	if (on)
+		msm_irq_smsm_wake_enable[1] |= mask;
+	else
+		msm_irq_smsm_wake_enable[1] &= ~mask;
+	return 0;
+}
+
+static int msm_irq_set_type(struct irq_data *d, unsigned int flow_type)
+{
+	void __iomem *treg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_TYPE0, d->irq);
+	void __iomem *preg = VIC_INT_TO_REG_ADDR(vic_data.base + VIC_INT_POLARITY0, d->irq);
+	unsigned int index = VIC_INT_TO_REG_INDEX(d->irq);
+	int b = BIT(d->irq & 31);
+	u32 polarity;
+	u32 type;
+
+	polarity = msm_irq_shadow_reg[index].int_polarity;
+	if (flow_type & (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_LOW))
+		polarity |= b;
+	if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_HIGH))
+		polarity &= ~b;
+	writel(polarity, preg);
+	msm_irq_shadow_reg[index].int_polarity = polarity;
+
+	type = msm_irq_shadow_reg[index].int_type;
+	if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
+		type |= b;
+		irq_set_handler_locked(d, handle_edge_irq);
+	}
+	if (flow_type & (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW)) {
+		type &= ~b;
+		irq_set_handler_locked(d, handle_level_irq);
+	}
+	writel(type, treg);
+	msm_irq_shadow_reg[index].int_type = type;
+	return 0;
+}
+
+static inline void msm_vic_handle_irq(void __iomem *base_addr, struct pt_regs *regs)
+{
+	u32 irqnr;
+
+	do {
+		/*
+		 * VIC_IRQ_VEC_RD has irq# or old irq# if the irq has been handled
+		 * VIC_IRQ_VEC_PEND_RD has irq# or -1 if none pending *but* if you
+		 * just read VIC_IRQ_VEC_PEND_RD you never get the first irq for some reason
+		 */
+		irqnr = readl_relaxed(base_addr + VIC_IRQ_VEC_RD);
+		irqnr = readl_relaxed(base_addr + VIC_IRQ_VEC_PEND_RD);
+		if (irqnr == NO_PENDING_IRQ)
+			break;
+		handle_IRQ(irqnr, regs);
+	} while (1);
+}
+
+/* enable imprecise aborts */
+static inline void local_cpsie_enable(void)
+{
+	asm volatile("cpsie a" : : : "memory");
+}
+
+static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
+{
+	local_cpsie_enable();
+	msm_vic_handle_irq(vic_data.base, regs);
+}
+
+static struct irq_chip msm_irq_chip = {
+	.name          = "msm",
+	.irq_disable   = msm_irq_mask,
+	.irq_ack       = msm_irq_ack,
+	.irq_mask      = msm_irq_mask,
+	.irq_unmask    = msm_irq_unmask,
+	.irq_set_wake  = msm_irq_set_wake,
+	.irq_set_type  = msm_irq_set_type,
+};
+
+static int msm_vic_parse_irq_mapping(struct device_node *np, struct msm_irq_map **map, int *count)
+{
+	u32 *buf;
+	int len, i, ret;
+
+	if (!of_get_property(np, "irq-mapping", &len)) {
+		pr_err("%s: No irq-mapping property in device tree\n", __func__);
+		return -ENODEV;
+	}
+
+	/* Each entry is 2 u32 values: irq + smsm */
+	*count = len / (2 * sizeof(u32));
+
+	buf = kcalloc(*count * 2, sizeof(u32), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	*map = kcalloc(*count, sizeof(**map), GFP_KERNEL);
+	if (!*map) {
+		ret = -ENOMEM;
+		goto err_free_buf;
+	}
+
+	ret = of_property_read_u32_array(np, "irq-mapping", buf, *count * 2);
+	if (ret) {
+		pr_err("%s: Failed to read irq-mapping property\n", __func__);
+		goto err_free_map;
+	}
+
+	for (i = 0; i < *count; i++) {
+		(*map)[i].irq  = buf[i * 2];
+		(*map)[i].smsm = buf[i * 2 + 1];
+	}
+
+	kfree(buf);
+	return 0;
+
+err_free_map:
+	kfree(*map);
+	*map = NULL;
+err_free_buf:
+	kfree(buf);
+	return ret;
+}
+
+static int __init msm_init_irq(struct device_node *intc, struct device_node *parent)
+{
+	int ret;
+
+	vic_data.base = of_iomap(intc, 0);
+	if (WARN_ON(!vic_data.base))
+		return -EIO;
+	ret = of_property_read_u32(intc, "num-irqs", &vic_data.nr_vic_irqs);
+	if (ret) {
+		pr_err("%s: failed to read num-irqs ret=%d\n", __func__, ret);
+		goto cleanup;
+	}
+
+	ret = of_property_read_u32(intc, "num-gpio-irqs", &vic_data.nr_gpio_irqs);
+	if (ret) {
+		pr_err("%s: failed to read num-gpio-irqs ret=%d\n", __func__, ret);
+		goto cleanup;
+	}
+
+	ret = msm_vic_parse_irq_mapping(intc, &vic_data.irq_map, &vic_data.irq_map_count);
+	if (ret) {
+		pr_err("Failed to parse irq-mapping\n");
+		goto cleanup;
+	}
+
+	ret = of_property_read_u32(intc, "vic-num-regs", &vic_data.vic_num_regs);
+	if (ret) {
+		pr_err("Failed to parse vic-num-regs\n");
+		goto cleanup;
+	}
+
+	msm_irq_shadow_reg = kcalloc(vic_data.vic_num_regs,
+				     sizeof(*msm_irq_shadow_reg),
+					 GFP_KERNEL);
+
+	msm_irq_idle_disable = kcalloc(vic_data.vic_num_regs,
+				       sizeof(*msm_irq_idle_disable),
+				       GFP_KERNEL);
+
+	if (!msm_irq_shadow_reg || !msm_irq_idle_disable)
+		goto cleanup;
+
+	vic_data.msm_nr_irqs = vic_data.nr_vic_irqs * 2 + vic_data.nr_gpio_irqs;
+
+	/* select level interrupts */
+	msm_irq_write_all_regs(vic_data.base + VIC_INT_TYPE0, 0);
+
+	/* select highlevel interrupts */
+	msm_irq_write_all_regs(vic_data.base + VIC_INT_POLARITY0, 0);
+
+	/* select IRQ for all INTs */
+	msm_irq_write_all_regs(vic_data.base + VIC_INT_SELECT0, 0);
+
+	/* disable all INTs */
+	msm_irq_write_all_regs(vic_data.base + VIC_INT_EN0, 0);
+
+	/* don't use vic */
+	writel(0, vic_data.base + VIC_CONFIG);
+
+	/* enable interrupt controller */
+	writel(3, vic_data.base + VIC_INT_MASTEREN);
+
+	for (int n = 0; n < vic_data.nr_vic_irqs; n++)
+		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);
+
+	/* Ready to receive interrupts */
+	set_handle_irq(vic_handle_irq);
+
+	vic_data.domain = irq_domain_create_legacy
+		(of_fwnode_handle(intc),
+		vic_data.nr_vic_irqs,
+		0, 0,
+		&irq_domain_simple_ops,
+		&vic_data);
+	if (!vic_data.domain)
+		pr_err("%s: failed to register irq domain\n", __func__);
+	return 0;
+
+cleanup:
+		kfree(msm_irq_shadow_reg);
+		kfree(msm_irq_idle_disable);
+		kfree(vic_data.irq_map);
+		iounmap(vic_data.base);
+		return ret;
+}
+
+IRQCHIP_DECLARE(qcom_msm_vic, "qcom,msm-vic", msm_init_irq);

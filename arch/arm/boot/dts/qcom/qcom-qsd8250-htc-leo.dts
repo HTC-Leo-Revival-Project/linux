@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, HTC Leo Revival Project. All rights reserved.
+ */
+
+#include "qcom-qsd8250.dtsi"
+
+/ {
+	model = "HTC HD2";
+	compatible = "htc,leo", "qcom,qsd8250";
+	chassis-type = "handset";
+
+	aliases {
+		serial0 = &blsp1_uart1;
+	};
+
+	chosen {
+		/* Use efifb for video output, rodata=off is needed
+		 * as the kernel doesn't boot with kernel memory 
+		 * protection enabled
+		 */
+        bootargs = "video=efifb rodata=off";
+		//stdout-path = "serial0:115200n8";
+
+	};
+
+		gpio-keys {
+			compatible = "gpio-keys";
+
+			power {
+				label = "Power";
+				linux,code = <KEY_POWER>;
+				gpios = <&gpio 94 GPIO_ACTIVE_LOW>;
+			};
+				};
+
+		matrix_keys {
+			compatible = "htc,qsd8250-matrix-keys";
+
+			poll-interval = <20>;
+
+			row-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>,
+		    			<&gpio 32 GPIO_ACTIVE_HIGH>,
+		    			<&gpio 33 GPIO_ACTIVE_HIGH>;
+
+			col-gpios = <&gpio 41 GPIO_ACTIVE_HIGH>,
+		    			<&gpio 42 GPIO_ACTIVE_HIGH>;
+
+			keymap {
+				enter {
+					row = <1>;
+					col = <0>;
+					linux,code = <KEY_ENTER>;
+					active-low;
+				};
+
+				volume-up {
+					row = <2>;
+					col = <1>;
+					linux,code = <KEY_VOLUMEUP>;
+					active-low;
+				};
+
+				volume-down {
+					row = <2>;
+					col = <0>;
+					linux,code = <KEY_VOLUMEDOWN>;
+					active-low;
+				};
+			};
+		};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		appsbl: reserved@0 {
+			reg = <0x00000000 0x00100000>;
+			no-map;
+		};
+
+		smem_mem: memory@100000 {
+			reg = <0x00100000 0x00100000>;
+			no-map;
+		};
+
+		uefi_mem: memory@2c000000 {
+			reg = <0x2c000000 0x00100000>;
+			no-map;
+		};
+
+		display_reserved: framebuffer@2a00000 {
+			reg = <0x2a00000 0x000c0000>;
+			no-map;
+		};
+
+		ramoops@2ffc0000 {
+			compatible = "ramoops";
+			reg = <0x2ffc0000 0x40000>;
+			// record-size = <0x10000>;
+			console-size = <0x40000>;
+		};
+	};
+};
+
+	&vibrator {
+			enable-gpios = <&gpio 100 GPIO_ACTIVE_HIGH>;
+			status = "okay";
+	};
+
+	&leds {
+		status = "okay";
+			flash {
+				gpios = <&gpio 143 GPIO_ACTIVE_HIGH>;
+			};
+			kbd-backlight {
+				status = "okay";
+				gpios = <&gpio 48 GPIO_ACTIVE_HIGH>;
+			};
+	};

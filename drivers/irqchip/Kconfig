@@ -516,6 +516,13 @@ config QCOM_PDC
 	  Power Domain Controller driver to manage and configure wakeup
 	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
 
+config QCOM_MSM_VIC
+	bool "QCOM ARM VIC"
+	depends on ARCH_QCOM && ARM
+	select IRQ_DOMAIN
+	help
+	  Vectored Interrupt Controller driver for QCOM MSM devices
+
 config QCOM_MPM
 	tristate "QCOM MPM"
 	depends on ARCH_QCOM

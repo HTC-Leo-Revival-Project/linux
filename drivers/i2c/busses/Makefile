@@ -162,4 +162,10 @@ obj-$(CONFIG_SCx200_ACB)	+= scx200_acb.o
 obj-$(CONFIG_I2C_FSI)		+= i2c-fsi.o
 obj-$(CONFIG_I2C_VIRTIO)	+= i2c-virtio.o
 
+obj-$(CONFIG_I2C_QSD8250) += i2c-qsd8250.o
+obj-$(CONFIG_I2C_HTC_MICROP) += i2c-microp.o
+
+obj-y += i2c-qsd8250.o
+obj-y += i2c-microp.o
+
 ccflags-$(CONFIG_I2C_DEBUG_BUS) := -DDEBUG

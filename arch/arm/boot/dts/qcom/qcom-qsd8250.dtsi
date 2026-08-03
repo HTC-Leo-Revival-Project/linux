@@ -1,0 +1,345 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2024, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, HTC Leo Revival Project. All rights reserved.
+ */
+
+ #include <dt-bindings/interrupt-controller/qcom-sirc.h>
+ #include <dt-bindings/interrupt-controller/qcom-vic.h>
+ #include <dt-bindings/gpio/gpio.h>
+ #include <dt-bindings/input/input.h>
+ 
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "Qualcomm QSD8250";
+	compatible = "qcom,qsd8250";
+	interrupt-parent = <&intc>;
+
+	chosen { };
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
+	};
+
+	clocks {
+		xo_board: xo_board {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <19200000>;
+		};
+
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
+    vibrator_vcc: vibrator-vcc {
+        compatible = "regulator-fixed";
+        regulator-name = "vibrator-vcc";
+        regulator-min-microvolt = <3000000>;
+        regulator-max-microvolt = <3000000>;
+        regulator-always-on;
+        regulator-boot-on;
+    };
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "qcom,scorpion";
+			device_type = "cpu";
+			reg = <0>;
+			next-level-cache = <&L2>;
+		};
+
+		L2: l2-cache {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+		};
+	};
+
+	soc: soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+	qsd8250_vreg: regulator-controller {
+		compatible = "qcom,qsd8250-vreg";
+		status = "disabled";
+	};
+
+		intc: interrupt-controller@ac000000 {
+			compatible = "qcom,msm-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0xac000000 0x1000>;
+			num-irqs = <64>;
+			num-gpio-irqs = <165>;
+			vic-num-regs = <2>;
+			irq-mapping = <
+    		17 1   /* INT_MDDI_EXT -> SMSM 1 */
+    		16 2   /* INT_MDDI_PRI -> SMSM 2 */
+    		18 3   /* INT_MDDI_CLIENT -> SMSM 3 */
+    		15 4   /* INT_USB_OTG -> SMSM 4 */
+    		34 5   /* INT_PWB_I2C -> SMSM 5 */
+    		24 6   /* INT_SDC1_0 -> SMSM 6 */
+    		25 7   /* INT_SDC1_1 -> SMSM 7 */
+    		26 8   /* INT_SDC2_0 -> SMSM 8 */
+    		27 9   /* INT_SDC2_1 -> SMSM 9 */
+    		23 10  /* INT_ADSP_A9_A11 -> SMSM 10 */
+    		44 17  /* INT_UART1DM_IRQ -> SMSM 17 */
+    		45 18  /* INT_UART1DM_RX -> SMSM 18 */
+    		28 19  /* INT_KEYSENSE -> SMSM 19 */
+    		40 20  /* INT_AD_HSSD -> SMSM 20 */
+    		36 21  /* INT_NAND_WR_ER_DONE -> SMSM 21 */
+    		37 22  /* INT_NAND_OP_DONE -> SMSM 22 */
+    		30 23  /* INT_TCHSCRN1 -> SMSM 23 */
+    		31 24  /* INT_TCHSCRN2 -> SMSM 24 */
+    		29 25  /* INT_TCHSCRN_SSBI -> SMSM 25 */
+    		58 26  /* INT_USB_HS -> SMSM 26 */
+    		53 27  /* INT_UART2DM_RX -> SMSM 27 */
+    		52 28  /* INT_UART2DM_IRQ -> SMSM 28 */
+    		13 29  /* INT_SDC4_1 -> SMSM 29 */
+    		12 30  /* INT_SDC4_0 -> SMSM 30 */
+    		11 31  /* INT_SDC3_1 -> SMSM 31 */
+    		10 32  /* INT_SDC3_0 -> SMSM 32 */
+
+		    /* fake wakeup interrupts */
+    		0 SMSM_FAKE_IRQ   /* INT_A9_M2A_0 -> SMSM_FAKE_IRQ */
+    		1 SMSM_FAKE_IRQ   /* INT_A9_M2A_1 -> SMSM_FAKE_IRQ */
+    		5 SMSM_FAKE_IRQ   /* INT_A9_M2A_5 -> SMSM_FAKE_IRQ */
+    		7 SMSM_FAKE_IRQ   /* INT_GP_TIMER_EXP -> SMSM_FAKE_IRQ */
+    		8 SMSM_FAKE_IRQ   /* INT_DEBUG_TIMER_EXP -> SMSM_FAKE_IRQ */
+    		22 SMSM_FAKE_IRQ  /* INT_ADSP_A11 -> SMSM_FAKE_IRQ */
+    		9 SMSM_FAKE_IRQ   /* INT_SIRC_0 -> SMSM_FAKE_IRQ */
+    		63 SMSM_FAKE_IRQ  /* INT_SIRC_1 -> SMSM_FAKE_IRQ */
+			>;
+		};
+		
+		sirc: interrupt-controller@ac200000 {
+			compatible = "qcom,msm-sirc";
+			reg = <0xac200000 0x1000>;
+			first-sirc-irq = <229>;
+			nr-sirc-irqs = <23>;
+			sirc-mask = <0x007FFFFF>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&intc>;
+			interrupts = <9>;
+		};
+
+		blsp1_uart1: serial@a9a00000 {
+			compatible = "qcom,msm-uart";
+			reg = <0xa9a00000 0x1000>;
+			interrupt-parent = <&sirc>;
+			clock-names = "core";
+		};
+
+		timer@ac100000 {
+			compatible = "qcom,qsd8k-timer";
+			reg = <0xac100000 0x100>;
+			interrupt-parent = <&intc>;
+			interrupts = <7>;
+			clock-frequency = <19200000>;
+		};
+
+		msm_proc_comm@ac100000 {
+    		compatible = "qcom,msm-proc-comm";
+    		reg = <0x00100000 0x00100000>, /* shared-ram-base */
+          	  	  <0xac100000 0x100>; /* csr-base */
+    		reg-names = "shared-ram-base", "csr-base";
+		};
+
+		restart {
+			compatible = "qcom,pshold-proc_comm";
+			status = "okay";
+		};
+
+		gpio: gpio@a9000000 {
+			compatible = "qcom,qsd8250-gpio";
+			reg = <0xa9000000 0x1000>,
+		      	  <0xa9100000 0x1000>,
+		      	  <0xa8e00000 0x1000>,
+		      	  <0xa8f00000 0x1000>;
+			reg-names = "gpio1", "gpio2", "gpio1-cfg", "gpio2-cfg";
+
+			interrupt-parent = <&sirc>;
+			interrupts = <9>, <10>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		qsd8250_clk: clk@a8600000 {
+			status = "disabled";
+    		compatible = "qcom,qsd8250-clk";
+			reg = <0xA8600000 0x00100000>;
+			#clock-cells = <1>;
+		};
+
+		vibrator: vibrator {
+			status = "disabled";
+			compatible = "gpio-vibrator";
+			vcc-supply = <&vibrator_vcc>;
+		};
+
+		leds: leds {
+			status = "disabled";
+			compatible = "gpio-leds";
+			flash {
+				label = "flash";
+				default-state = "off";
+			};
+			kbd-backlight {
+				status = "disabled";
+				label = "kdb-backlight";
+				default-state = "off";
+			};
+		};
+
+    i2c0: i2c@a9900000 {
+		status = "disabled";
+        compatible = "qcom,qsd8250-i2c";
+        reg = <0xa9900000 0x1000>;
+		interrupt-parent = <&intc>;
+        interrupts = <34>;
+        clock-names = "core";
+        clock-frequency = <400000>;
+        sda-gpios = <&gpio 96 GPIO_ACTIVE_HIGH>;
+        scl-gpios = <&gpio 95 GPIO_ACTIVE_HIGH>;
+		qcom,sda-pin = <96>;
+        qcom,scl-pin = <95>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+ 
+        microp@66 {
+            compatible = "htc,qsd8250-microp";
+            reg = <0x66>;
+            gpio-reset-gpios = <&gpio 91 1>; /* GPIO_ACTIVE_LOW */
+ 
+            #address-cells = <1>;
+            #size-cells = <0>;
+			led@1 {
+				compatible = "htc,microp-led";
+				reg = <1>;
+			};
+
+			led@2 {
+				status = "disabled";
+				compatible = "htc,microp-jogball-led";
+				reg = <2>;
+			};
+
+			led@3 {
+				status = "disabled";
+				compatible = "htc,microp-kbd-backlight";
+				reg = <3>;
+			};
+        };
+    };
+
+	jogball: jogball {
+		compatible = "htc,jogball";
+		status = "disabled";
+	};
+
+/* QSD8x50 ULPI PHY */
+        hsusb_phy: phy@a0800000 {
+			compatible = "qcom,qsd8x50-usb-phy";
+			reg = <0xa0800000 0x200>;
+
+			/* PCOM ID 52: P_USB_PHY_CLK */
+			clocks = <&qsd8250_clk 4>;
+			clock-names = "phy";
+
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+        /* ChipIdea USB Peripheral Core */
+        usb: usb@a0800000 {
+            compatible = "qcom,ci-hdrc-msm", "chipidea,usb2";
+            reg = <0xa0800000 0x200>;
+			interrupt-parent = <&intc>;
+            interrupts = <58>;
+
+            clocks = <&qsd8250_clk 2>, <&qsd8250_clk 3>;
+            clock-names = "core", "iface";
+
+            phys = <&hsusb_phy>;
+            phy-names = "usb-phy";
+            phy_type = "ulpi";
+            dr_mode = "peripheral"; /* Forces gadget mode */
+
+            ahb-burst-config = <0x0>;
+            ahb-mode-config = <0x0>;
+            disable-streaming;
+
+            status = "disabled";
+        };
+
+	sdcc1: mmc@a0300000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		arm,primecell-periphid = <0x00051190>; /* forces variant_qcom_adm, see mmci-qsd8x50-adm-variant.patch */
+		reg = <0xa0300000 0x100000>;
+		interrupt-parent = <&intc>;
+		interrupts = <24>, <25>;
+		clocks = <&qsd8250_clk 5>, <&qsd8250_clk 6>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		status = "disabled";
+	};
+
+	sdcc2: mmc@a0400000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		arm,primecell-periphid = <0x00051190>;
+		reg = <0xa0400000 0x100000>;
+		interrupt-parent = <&intc>;
+		interrupts = <26>, <27>;
+		clocks = <&qsd8250_clk 7>, <&qsd8250_clk 8>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		status = "disabled";
+	};
+
+	sdcc3: mmc@a0500000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		arm,primecell-periphid = <0x00051190>;
+		reg = <0xa0500000 0x100000>;
+		interrupt-parent = <&intc>;
+		interrupts = <10>, <11>;
+		clocks = <&qsd8250_clk 9>, <&qsd8250_clk 10>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		status = "disabled";
+	};
+
+	sdcc4: mmc@a0600000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		arm,primecell-periphid = <0x00051190>;
+		reg = <0xa0600000 0x100000>;
+		interrupt-parent = <&intc>;
+		interrupts = <12>, <13>;
+		clocks = <&qsd8250_clk 11>, <&qsd8250_clk 12>;
+		clock-names = "mclk", "apb_pclk";
+		bus-width = <4>;
+		max-frequency = <48000000>;
+		status = "disabled";
+	};
+	};
+};

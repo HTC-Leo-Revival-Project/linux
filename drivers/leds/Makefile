@@ -112,6 +112,10 @@ obj-$(CONFIG_LEDS_SPI_BYTE)		+= leds-spi-byte.o
 # LED Userspace Drivers
 obj-$(CONFIG_LEDS_USER)			+= uleds.o
 
+obj-y += htc-jogball-led.o
+obj-y += htc-kbd-backlight.o
+obj-y += htc-top-led.o
+
 # Flash and Torch LED Drivers
 obj-$(CONFIG_LEDS_CLASS_FLASH)		+= flash/
 

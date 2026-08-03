@@ -16,8 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
-
-#include <asm/delay.h>
+#include <linux/delay.h>
 
 #define TIMER_MATCH_VAL			0x0000
 #define TIMER_COUNT_VAL			0x0004
@@ -249,5 +248,26 @@ static int __init msm_dt_timer_init(struct device_node *np)
 
 	return ret;
 }
+
+static int __init qsd8x50_timer_init(struct device_node *timer, struct device_node *parent)
+{
+	void __iomem *timer_base;
+
+	timer_base = of_iomap(timer, 0);
+	if (!timer_base){
+		pr_err("Failed to map timer base\n");
+		return -ENOMEM;
+	}
+	
+	event_base = timer_base;
+	source_base = timer_base + 0x10;
+	sts_base = timer_base + 0x34;
+	
+	/* TODO: Read at least freq and irq from DT */
+	msm_timer_init(19200000 / 4, 32, 7, false);
+	return 0;
+}
+
 TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
 TIMER_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
+TIMER_OF_DECLARE(qsd8k_timer, "qcom,qsd8k-timer", qsd8x50_timer_init);
