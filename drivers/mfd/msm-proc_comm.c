@@ -513,14 +513,6 @@ static const struct of_device_id msm_proc_comm_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, msm_proc_comm_dt_match);
 
-static struct platform_driver msm_proc_comm_driver = {
-    .probe = msm_proc_comm_probe,
-    .driver = {
-        .name = "msm_proc_comm",
-        .of_match_table = msm_proc_comm_dt_match,
-    },
-};
-
 static int __init msm_proc_comm_early_init(void)
 {
     struct device_node *np;
