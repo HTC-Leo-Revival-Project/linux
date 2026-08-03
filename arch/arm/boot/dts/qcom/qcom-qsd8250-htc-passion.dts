@@ -25,6 +25,23 @@
 
 	};
 
+		reg_tp_pwr: regulator-tp-pwr {
+			compatible = "regulator-fixed";
+			regulator-name = "tp_pwr";
+			gpio = <&gpio 160 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			startup-delay-us = <120000>; /* 120ms delay required before enabling level shifters */
+		};
+
+		reg_tp_ls_pwr: regulator-tp-ls-pwr {
+			compatible = "regulator-fixed";
+			regulator-name = "tp_ls_pwr";
+			gpio = <&gpio 93 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&reg_tp_pwr>;
+			startup-delay-us = <3000>;  /* 3ms settling delay */
+		};
+
 		gpio-keys {
 			compatible = "gpio-keys";
 
@@ -139,12 +156,22 @@
 
 	&qsd8250_clk {
 		status = "okay";
-    	qcom,clk-ids = <9 31>;
+    	qcom,clk-ids = <9 31 36 37 52>;
 		};
 
     &i2c0 {
 		status = "okay";
         clocks = <&qsd8250_clk 0>;
+
+		touchscreen@40 {
+			compatible = "synaptics,synaptics_rmi";
+			reg = <0x40>;
+			interrupt-parent = <&gpio>;
+			interrupts = <92 IRQ_TYPE_EDGE_FALLING>;
+			vdd-supply = <&reg_tp_ls_pwr>;
+			touchscreen-inverted-y;
+			synaptics,sensitivity-adjust = /bits/ 8 <9>;
+		};
 		microp@66 {
 			led@2 {
 				status = "okay";
@@ -155,6 +182,16 @@
 			};
         };
     };
+
+jogball {
+		compatible = "htc,jogball";
+		status = "okay";
+		up-gpios    = <&gpio 38  0>;
+		down-gpios  = <&gpio 37  0>;
+		left-gpios  = <&gpio 145 0>;
+		right-gpios = <&gpio 21  0>;
+		vcc-supply = <&gp2_jogball>;
+};
 	
 
 
