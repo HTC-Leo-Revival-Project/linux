@@ -43,6 +43,17 @@
 			startup-delay-us = <3000>;  /* 3ms settling delay */
 		};
 
+wifi_shutdown: wifi-shutdown {
+	compatible = "regulator-fixed";
+	regulator-name = "wifi-shutdown";
+	regulator-min-microvolt = <2900000>;
+	regulator-max-microvolt = <2900000>;
+	gpio = <&gpio 127 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+	regulator-boot-on;
+	startup-delay-us = <200000>;	/* matches mdelay(200) after WIFI_SHUTDOWN# in downstream mahimahi_wifi_power() */
+};
+
 		gpio-keys {
 			compatible = "gpio-keys";
 
@@ -146,6 +157,18 @@
 &uartdm1 {
 	status = "okay";
 	clocks = <&qsd8250_clk 14>, <&qsd8250_clk 15>;
+		bluetooth {
+		compatible = "brcm,bcm4329-bt";
+		firmware-name = "brcm/bcm4329.hcd";
+
+		device-wakeup-gpios = <&gpio 57 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpio 86 GPIO_ACTIVE_HIGH>;
+
+		shutdown-gpios = <&gpio 128 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio 146 GPIO_ACTIVE_LOW>;
+
+		max-speed = <115200>;
+	};
 };
 
 	&blsp1_uart1 {
@@ -203,6 +226,36 @@
 		left-gpios  = <&gpio 145 0>;
 		right-gpios = <&gpio 21  0>;
 		vcc-supply = <&gp2_jogball>;
+};
+
+&sdcc1 {
+	status = "okay";
+
+	interrupt-parent = <&intc>;
+	interrupts = <24>, <25>;	/* INT_SDC1_0, INT_SDC1_1 */
+
+	bus-width = <4>;
+	non-removable;
+	cap-sdio-irq;			/* allow in-band SDIO interrupt use */
+
+	vmmc-supply = <&wifi_shutdown>;	/* TODO: confirm this node -- see below */
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wifi@1 {
+		compatible = "brcm,bcm4329-fmac";
+		reg = <1>;
+		brcm,drive-strength = <4>;
+
+		/* Add once in-band SDIO works and you've picked a trigger
+		 * type your gpio irqchip actually supports:
+		 *
+		 * interrupt-parent = <&gpio>;
+		 * interrupts = <152 IRQ_TYPE_EDGE_FALLING>;
+		 * interrupt-names = "host-wake";
+		 */
+	};
 };
 
 &sdcc2 {

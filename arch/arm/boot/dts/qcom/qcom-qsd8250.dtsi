@@ -302,14 +302,14 @@
 
 	sdcc1: mmc@a0300000 {
 		compatible = "arm,pl18x", "arm,primecell";
-		arm,primecell-periphid = <0x00051190>; /* forces variant_qcom_adm, see mmci-qsd8x50-adm-variant.patch */
+		arm,primecell-periphid = <0x00051191>; /* forces variant_qcom_adm, see mmci-qsd8x50-adm-variant.patch */
 		reg = <0xa0300000 0x100000>;
 		interrupt-parent = <&intc>;
 		interrupts = <24>, <25>;
 		clocks = <&qsd8250_clk 5>, <&qsd8250_clk 6>;
 		clock-names = "mclk", "apb_pclk";
 		bus-width = <4>;
-		max-frequency = <48000000>;
+		max-frequency = <25000000>;
 		status = "disabled";
 	};
 
@@ -351,5 +351,9 @@
 		max-frequency = <48000000>;
 		status = "disabled";
 	};
+
+bt_uart_pins {
+	compatible = "htc,qsd8250-bt-uart-pins";
+};
 	};
 };
