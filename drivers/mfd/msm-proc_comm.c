@@ -473,40 +473,6 @@ bool is_pcom_probed(void) {
 }
 EXPORT_SYMBOL(is_pcom_probed);
 
-static int msm_proc_comm_probe(struct platform_device *pdev)
-{
-    struct resource *res;
-
-    proc_comm_data = devm_kzalloc(&pdev->dev, sizeof(*proc_comm_data), GFP_KERNEL);
-    if (!proc_comm_data)
-        return -ENOMEM;
-
-    res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "shared-ram-base");
-    if (!res) {
-        dev_err(&pdev->dev, "Failed to get shared RAM base resource\n");
-        return -EINVAL;
-    }
-
-    proc_comm_data->shared_ram_base = devm_ioremap_resource(&pdev->dev, res);
-    if (IS_ERR(proc_comm_data->shared_ram_base))
-        return PTR_ERR(proc_comm_data->shared_ram_base);
-
-    res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csr-base");
-    if (!res) {
-        dev_err(&pdev->dev, "Failed to get CSR base resource\n");
-        return -EINVAL;
-    }
-
-    proc_comm_data->csr_base = devm_ioremap_resource(&pdev->dev, res);
-    if (IS_ERR(proc_comm_data->csr_base))
-        return PTR_ERR(proc_comm_data->csr_base);
-
-    spin_lock_init(&proc_comm_lock);
-
-    dev_info(&pdev->dev, "MSM proc_comm driver initialized\n");
-    return 0;
-}
-
 static const struct of_device_id msm_proc_comm_dt_match[] = {
     { .compatible = "qcom,msm-proc-comm" },
     {},
