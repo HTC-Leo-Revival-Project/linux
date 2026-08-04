@@ -14,6 +14,16 @@
 #define GPIO_BT_UART1_RX  45
 #define GPIO_BT_UART1_TX  46
 
+static uint32_t wifi_on_gpio_table[] = {
+	PCOM_GPIO_CFG(51, 1, PCOM_GPIO_CFG_OUTPUT, PCOM_GPIO_CFG_PULL_UP, PCOM_GPIO_CFG_4MA), /* DAT3 */
+	PCOM_GPIO_CFG(52, 1, PCOM_GPIO_CFG_OUTPUT, PCOM_GPIO_CFG_PULL_UP, PCOM_GPIO_CFG_4MA), /* DAT2 */
+	PCOM_GPIO_CFG(53, 1, PCOM_GPIO_CFG_OUTPUT, PCOM_GPIO_CFG_PULL_UP, PCOM_GPIO_CFG_4MA), /* DAT1 */
+	PCOM_GPIO_CFG(54, 1, PCOM_GPIO_CFG_OUTPUT, PCOM_GPIO_CFG_PULL_UP, PCOM_GPIO_CFG_4MA), /* DAT0 */
+	PCOM_GPIO_CFG(55, 1, PCOM_GPIO_CFG_OUTPUT, PCOM_GPIO_CFG_PULL_UP, PCOM_GPIO_CFG_8MA), /* CMD */
+	PCOM_GPIO_CFG(56, 1, PCOM_GPIO_CFG_OUTPUT, PCOM_GPIO_CFG_NO_PULL, PCOM_GPIO_CFG_8MA), /* CLK */
+	PCOM_GPIO_CFG(152, 0, PCOM_GPIO_CFG_INPUT, PCOM_GPIO_CFG_NO_PULL, PCOM_GPIO_CFG_4MA),  /* WLAN IRQ */
+};
+
 static int htc_bt_gpio_init(void)
 {
 	static const unsigned configs[] = {
@@ -50,6 +60,11 @@ static int htc_bt_gpio_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(configs); i++) {
 		ret = pcom_gpio_tlmm_config(configs[i], GPIO_ENABLE);
+		if (ret)
+			pr_err("bt gpio cfg %d failed: %d\n", i, ret);
+	}
+	for (i = 0; i < ARRAY_SIZE(wifi_on_gpio_table); i++) {
+		ret = pcom_gpio_tlmm_config(wifi_on_gpio_table[i], GPIO_ENABLE);
 		if (ret)
 			pr_err("bt gpio cfg %d failed: %d\n", i, ret);
 	}

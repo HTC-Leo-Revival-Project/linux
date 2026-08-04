@@ -235,9 +235,9 @@ wifi_shutdown: wifi-shutdown {
 	interrupts = <24>, <25>;	/* INT_SDC1_0, INT_SDC1_1 */
 
 	bus-width = <4>;
+	max-frequency = <48000000>;
 	non-removable;
-	cap-sdio-irq;			/* allow in-band SDIO interrupt use */
-
+	cap-sdio-irq;
 	vmmc-supply = <&wifi_shutdown>;	/* TODO: confirm this node -- see below */
 
 	#address-cells = <1>;

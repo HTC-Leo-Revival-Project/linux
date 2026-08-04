@@ -308,8 +308,6 @@
 		interrupts = <24>, <25>;
 		clocks = <&qsd8250_clk 5>, <&qsd8250_clk 6>;
 		clock-names = "mclk", "apb_pclk";
-		bus-width = <4>;
-		max-frequency = <25000000>;
 		status = "disabled";
 	};
 
