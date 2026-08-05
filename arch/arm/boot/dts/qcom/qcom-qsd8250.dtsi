@@ -319,7 +319,6 @@ usb1: usb@a0800000 {
 		reg = <0xa0300000 0x100000>;
 		interrupt-parent = <&intc>;
 		interrupts = <24>, <25>;
-		clocks = <&qsd8250_clk 5>, <&qsd8250_clk 6>;
 		clock-names = "mclk", "apb_pclk";
 		bus-width = <4>;
 		max-frequency = <48000000>;
@@ -332,7 +331,6 @@ usb1: usb@a0800000 {
 		reg = <0xa0400000 0x100000>;
 		interrupt-parent = <&intc>;
 		interrupts = <26>, <27>;
-		clocks = <&qsd8250_clk 7>, <&qsd8250_clk 8>;
 		clock-names = "mclk", "apb_pclk";
 		bus-width = <4>;
 		max-frequency = <48000000>;
@@ -345,7 +343,6 @@ usb1: usb@a0800000 {
 		reg = <0xa0500000 0x100000>;
 		interrupt-parent = <&intc>;
 		interrupts = <10>, <11>;
-		clocks = <&qsd8250_clk 9>, <&qsd8250_clk 10>;
 		clock-names = "mclk", "apb_pclk";
 		bus-width = <4>;
 		max-frequency = <48000000>;
@@ -358,7 +355,6 @@ usb1: usb@a0800000 {
 		reg = <0xa0600000 0x100000>;
 		interrupt-parent = <&intc>;
 		interrupts = <12>, <13>;
-		clocks = <&qsd8250_clk 11>, <&qsd8250_clk 12>;
 		clock-names = "mclk", "apb_pclk";
 		bus-width = <4>;
 		max-frequency = <48000000>;
