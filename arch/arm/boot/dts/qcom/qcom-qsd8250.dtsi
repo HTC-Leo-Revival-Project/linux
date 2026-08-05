@@ -175,7 +175,7 @@
 		};
 
 		gpio: gpio@a9000000 {
-			compatible = "qcom,qsd8250-gpio";
+			compatible = "qcom,qsd8250-pinctrl";
 			reg = <0xa9000000 0x1000>,
 		      	  <0xa9100000 0x1000>,
 		      	  <0xa8e00000 0x1000>,
