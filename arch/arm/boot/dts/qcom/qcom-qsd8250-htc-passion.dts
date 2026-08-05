@@ -26,68 +26,84 @@
 
 	};
 
-		reg_tp_pwr: regulator-tp-pwr {
-			compatible = "regulator-fixed";
-			regulator-name = "tp_pwr";
-			gpio = <&gpio 160 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			startup-delay-us = <120000>; /* 120ms delay required before enabling level shifters */
+	reg_tp_pwr: regulator-tp-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "tp_pwr";
+		gpio = <&gpio 160 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <120000>; /* 120ms delay required before enabling level shifters */
+	};
+
+	reg_tp_ls_pwr: regulator-tp-ls-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "tp_ls_pwr";
+		gpio = <&gpio 93 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&reg_tp_pwr>;
+		startup-delay-us = <3000>;  /* 3ms settling delay */
+	};
+
+	v1p8_fixed: v1p8-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-hs-v1p8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	v3p3_fixed: v3p3-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-hs-v3p3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio 94 GPIO_ACTIVE_LOW>;
 		};
+	};
 
-		reg_tp_ls_pwr: regulator-tp-ls-pwr {
-			compatible = "regulator-fixed";
-			regulator-name = "tp_ls_pwr";
-			gpio = <&gpio 93 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			vin-supply = <&reg_tp_pwr>;
-			startup-delay-us = <3000>;  /* 3ms settling delay */
-		};
+	matrix_keys {
+		compatible = "htc,qsd8250-matrix-keys";
 
-		gpio-keys {
-			compatible = "gpio-keys";
+		poll-interval = <20>;
 
-			power {
-				label = "Power";
-				linux,code = <KEY_POWER>;
-				gpios = <&gpio 94 GPIO_ACTIVE_LOW>;
+		row-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>,
+	    			<&gpio 32 GPIO_ACTIVE_HIGH>,
+	    			<&gpio 33 GPIO_ACTIVE_HIGH>;
+
+		col-gpios = <&gpio 41 GPIO_ACTIVE_HIGH>,
+	    			<&gpio 42 GPIO_ACTIVE_HIGH>;
+
+		keymap {
+			enter {
+				row = <1>;
+				col = <0>;
+				linux,code = <KEY_ENTER>;
+				active-low;
 			};
-				};
 
-		matrix_keys {
-			compatible = "htc,qsd8250-matrix-keys";
+			volume-up {
+				row = <2>;
+				col = <1>;
+				linux,code = <KEY_VOLUMEUP>;
+				active-low;
+			};
 
-			poll-interval = <20>;
-
-			row-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>,
-		    			<&gpio 32 GPIO_ACTIVE_HIGH>,
-		    			<&gpio 33 GPIO_ACTIVE_HIGH>;
-
-			col-gpios = <&gpio 41 GPIO_ACTIVE_HIGH>,
-		    			<&gpio 42 GPIO_ACTIVE_HIGH>;
-
-			keymap {
-				enter {
-					row = <1>;
-					col = <0>;
-					linux,code = <KEY_ENTER>;
-					active-low;
-				};
-
-				volume-up {
-					row = <2>;
-					col = <1>;
-					linux,code = <KEY_VOLUMEUP>;
-					active-low;
-				};
-
-				volume-down {
-					row = <2>;
-					col = <0>;
-					linux,code = <KEY_VOLUMEDOWN>;
-					active-low;
-				};
+			volume-down {
+				row = <2>;
+				col = <0>;
+				linux,code = <KEY_VOLUMEDOWN>;
+				active-low;
 			};
 		};
+	};
 
 	reserved-memory {
 		#address-cells = <1>;
@@ -143,10 +159,10 @@
 
 
 
-&uartdm1 {
-	status = "okay";
-	clocks = <&qsd8250_clk 14>, <&qsd8250_clk 15>;
-};
+	&uartdm1 {
+		status = "okay";
+		clocks = <&qsd8250_clk 14>, <&qsd8250_clk 15>;
+	};
 
 	&blsp1_uart1 {
 		status = "okay";
@@ -210,6 +226,22 @@
 	vmmc-supply = <&gp6_sdcard>;
 	non-removable; 	// passions sdcard is not removable if you dont remove the battery so its kinda non removeable
 };
-	
 
+&usb1 {
+	clocks = <&qsd8250_clk 2>,
+		 <&qsd8250_clk 3>;
+	clock-names = "core", "iface";
+
+	ulpi {
+
+		usb1_phy: phy@0 {
+			clocks = <&qsd8250_clk 5>,
+			         <&sleep_clk>;
+			clock-names = "ref", "sleep";
+
+			v1p8-supply = <&v1p8_fixed>;
+			v3p3-supply = <&v3p3_fixed>;
+		};
+	};
+};
 
