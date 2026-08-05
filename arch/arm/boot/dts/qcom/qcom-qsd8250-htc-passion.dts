@@ -43,6 +43,22 @@
 			startup-delay-us = <3000>;  /* 3ms settling delay */
 		};
 
+v1p8_fixed: v1p8-fixed {
+	compatible = "regulator-fixed";
+	regulator-name = "usb-hs-v1p8";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-always-on;
+};
+
+v3p3_fixed: v3p3-fixed {
+	compatible = "regulator-fixed";
+	regulator-name = "usb-hs-v3p3";
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-always-on;
+};
+
 		gpio-keys {
 			compatible = "gpio-keys";
 
@@ -210,6 +226,22 @@
 	vmmc-supply = <&gp6_sdcard>;
 	non-removable; 	// passions sdcard is not removable if you dont remove the battery so its kinda non removeable
 };
-	
 
+&usb1 {
+	clocks = <&qsd8250_clk 2>,
+		 <&qsd8250_clk 3>;
+	clock-names = "core", "iface";
+
+	ulpi {
+
+		usb1_phy: phy@0 {
+			clocks = <&qsd8250_clk 5>,
+			         <&sleep_clk>;
+			clock-names = "ref", "sleep";
+
+			v1p8-supply = <&v1p8_fixed>;
+			v3p3-supply = <&v3p3_fixed>;
+		};
+	};
+};
 
