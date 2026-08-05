@@ -239,13 +239,27 @@
 		vcc-supply = <&gp2_jogball>;
 };
 
+&sdcc1 {
+	clocks = <&qsd8250_clk 5>, <&qsd8250_clk 6>;
+};
+
 &sdcc2 {
 	status = "okay";
 	vmmc-supply = <&gp6_sdcard>;
 	non-removable; 	// passions sdcard is not removable if you dont remove the battery so its kinda non removeable
 
+	clocks = <&qsd8250_clk 7>, <&qsd8250_clk 8>;
+
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcc2_default>;
+};
+
+&sdcc3 {
+	clocks = <&qsd8250_clk 9>, <&qsd8250_clk 10>;
+};
+
+&sdcc4 {
+	clocks = <&qsd8250_clk 11>, <&qsd8250_clk 12>;
 };
 
 &usb1 {
