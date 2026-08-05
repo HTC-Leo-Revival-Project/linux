@@ -12,7 +12,6 @@
 	chassis-type = "handset";
 
 	aliases {
-		serial0 = &blsp1_uart1;
 	};
 
 	chosen {
@@ -21,8 +20,23 @@
 		 * protection enabled
 		 */
         bootargs = "video=efifb rodata=off";
-		//stdout-path = "serial0:115200n8";
 
+	};
+
+	v1p8_fixed: v1p8-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-hs-v1p8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	v3p3_fixed: v3p3-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-hs-v3p3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 
 		gpio-keys {
@@ -105,6 +119,40 @@
 	};
 };
 
+&gpio {
+	sdcc2_default: sdcc2-default {
+		clk-pins {
+			pins = "gpio56";
+			function = "func1";
+			bias-disable;
+			drive-strength = <8>;
+		};
+
+		cmd-dat-pins {
+			pins = "gpio51", "gpio52", "gpio53", "gpio54", "gpio55";
+			function = "func1";
+			bias-pull-up;
+			drive-strength = <4>;
+		};
+	};
+};
+
+	&qsd8250_vreg {
+		status = "okay";
+
+		gp6_sdcard: gp6 {
+			regulator-name = "gp6";
+			qcom,vreg-id = <23>;
+			regulator-min-microvolt = <2850000>;
+			regulator-max-microvolt = <2850000>;
+		};
+	};
+
+	&uartdm1 {
+		status = "okay";
+		clocks = <&qsd8250_clk 14>, <&qsd8250_clk 15>;
+	};
+
 	&vibrator {
 			enable-gpios = <&gpio 100 GPIO_ACTIVE_HIGH>;
 			status = "okay";
@@ -120,3 +168,53 @@
 				gpios = <&gpio 48 GPIO_ACTIVE_HIGH>;
 			};
 	};
+
+	&qsd8250_clk {
+		status = "okay";
+    	qcom,clk-ids = <9 36 37 52 19 20 21 22 23 24 25 26 34 35>; // 0 1 2 3 4 5 6 7 8 9 10 11 12 14
+	};
+
+    &i2c0 {
+		status = "okay";
+        clocks = <&qsd8250_clk 0>;
+    };
+
+&sdcc1 {
+	clocks = <&qsd8250_clk 4>, <&qsd8250_clk 5>;
+};
+
+&sdcc2 {
+	status = "okay";
+	vmmc-supply = <&gp6_sdcard>;
+
+	clocks = <&qsd8250_clk 6>, <&qsd8250_clk 7>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdcc2_default>;
+};
+
+&sdcc3 {
+	clocks = <&qsd8250_clk 8>, <&qsd8250_clk 9>;
+};
+
+&sdcc4 {
+	clocks = <&qsd8250_clk 10>, <&qsd8250_clk 11>;
+};
+
+&usb1 {
+	clocks = <&qsd8250_clk 1>,
+		 <&qsd8250_clk 2>;
+	clock-names = "core", "iface";
+
+	ulpi {
+
+		usb1_phy: phy@0 {
+			clocks = <&qsd8250_clk 4>,
+			         <&sleep_clk>;
+			clock-names = "ref", "sleep";
+
+			v1p8-supply = <&v1p8_fixed>;
+			v3p3-supply = <&v3p3_fixed>;
+		};
+	};
+};
