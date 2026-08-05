@@ -192,7 +192,7 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 			  CI_HDRC_OVERRIDE_PHY_CONTROL;
 	ci->pdata.notify_event = ci_hdrc_msm_notify_event;
 
-	reset = devm_reset_control_get(&pdev->dev, "core");
+	reset = devm_reset_control_get_shared(&pdev->dev, "core");
 	if (IS_ERR(reset))
 		return PTR_ERR(reset);
 
@@ -201,16 +201,20 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	ci->iface_clk = clk = devm_clk_get(&pdev->dev, "iface");
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
 		return PTR_ERR(clk);
 
 	ci->fs_clk = clk = devm_clk_get_optional(&pdev->dev, "fs");
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	ci->base = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(ci->base))
-		return PTR_ERR(ci->base);
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	if (!res) 
+		return -EINVAL;
+	ci->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!ci->base)
+		return -ENOMEM;
 
 	ci->rcdev.owner = THIS_MODULE;
 	ci->rcdev.ops = &ci_hdrc_msm_reset_ops;
@@ -223,10 +227,10 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(ci->fs_clk);
 	if (ret)
 		return ret;
-
-	reset_control_assert(reset);
-	usleep_range(10000, 12000);
-	reset_control_deassert(reset);
+	ret = reset_control_reset(reset);
+	if (ret) {
+		return ret;
+	}
 
 	clk_disable_unprepare(ci->fs_clk);
 

@@ -37,6 +37,11 @@ struct qcom_usb_hs_phy {
 	struct ulpi_seq *init_seq;
 	struct extcon_dev *vbus_edev;
 	struct notifier_block vbus_notify;
+	bool raw_vendor_regs;
+};
+
+struct qcom_usb_hs_phy_data {
+	bool raw_vendor_regs;
 };
 
 static int qcom_usb_hs_phy_set_mode(struct phy *phy,
@@ -141,12 +146,13 @@ static int qcom_usb_hs_phy_power_on(struct phy *phy)
 	if (ret)
 		goto err_3p3;
 
-	for (seq = uphy->init_seq; seq->addr; seq++) {
-		ret = ulpi_write(ulpi, ULPI_EXT_VENDOR_SPECIFIC + seq->addr,
-				 seq->val);
-		if (ret)
-			goto err_ulpi;
-	}
+u8 base = uphy->raw_vendor_regs ? 0 : ULPI_EXT_VENDOR_SPECIFIC;
+
+for (seq = uphy->init_seq; seq->addr; seq++) {
+	ret = ulpi_write(ulpi, base + seq->addr, seq->val);
+	if (ret)
+		goto err_ulpi;
+}
 
 	if (uphy->reset) {
 		ret = reset_control_reset(uphy->reset);
@@ -206,6 +212,7 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 	struct clk *clk;
 	struct regulator *reg;
 	struct reset_control *reset;
+	const struct qcom_usb_hs_phy_data *data;
 	int size;
 	int ret;
 
@@ -213,6 +220,8 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 	if (!uphy)
 		return -ENOMEM;
 	ulpi_set_drvdata(ulpi, uphy);
+	data = of_device_get_match_data(&ulpi->dev);
+	uphy->raw_vendor_regs = data && data->raw_vendor_regs;
 	uphy->ulpi = ulpi;
 
 	size = of_property_count_u8_elems(ulpi->dev.of_node, "qcom,init-seq");
@@ -226,8 +235,8 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 					(u8 *)uphy->init_seq, size);
 	if (ret && size)
 		return ret;
-	/* NUL terminate */
-	uphy->init_seq[size / 2].addr = uphy->init_seq[size / 2].val = 0;
+	uphy->init_seq[size / 2].addr = 0;
+	uphy->init_seq[size / 2].val = 0;
 
 	uphy->ref_clk = clk = devm_clk_get(&ulpi->dev, "ref");
 	if (IS_ERR(clk))
@@ -245,7 +254,7 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	uphy->reset = reset = devm_reset_control_get(&ulpi->dev, "por");
+	uphy->reset = reset = devm_reset_control_get_shared(&ulpi->dev, "por");
 	if (IS_ERR(reset)) {
 		if (PTR_ERR(reset) == -EPROBE_DEFER)
 			return PTR_ERR(reset);
@@ -268,11 +277,16 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 	phy_set_drvdata(uphy->phy, uphy);
 
 	p = devm_of_phy_provider_register(&ulpi->dev, of_phy_simple_xlate);
-	return PTR_ERR_OR_ZERO(p);
+	ret = PTR_ERR_OR_ZERO(p);
+	return ret;
 }
+static const struct qcom_usb_hs_phy_data qsd8250_data = {
+	.raw_vendor_regs = true,
+};
 
 static const struct of_device_id qcom_usb_hs_phy_match[] = {
 	{ .compatible = "qcom,usb-hs-phy", },
+	{ .compatible = "qcom,qsd8250-usb-hs-phy", .data = &qsd8250_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_usb_hs_phy_match);

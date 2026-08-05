@@ -265,40 +265,53 @@
 		status = "disabled";
 	};
 
-/* QSD8x50 ULPI PHY */
-        hsusb_phy: phy@a0800000 {
-			compatible = "qcom,qsd8x50-usb-phy";
-			reg = <0xa0800000 0x200>;
+pcom_usb_reset: usb-reset {
+	compatible = "qcom,pcom-usb-reset";
+	#reset-cells = <0>;
+};
 
-			/* PCOM ID 52: P_USB_PHY_CLK */
-			clocks = <&qsd8250_clk 4>;
-			clock-names = "phy";
+usb1: usb@a0800000 {
+	compatible = "qcom,ci-hdrc";
+
+	reg = <0xa0800000 0x400>;
+	interrupt-parent = <&intc>;
+	interrupts = <58>;
+
+	dr_mode = "peripheral";
+	phy_type = "ulpi";
+
+	phys = <&usb1_phy>;
+	phy-names = "usb-phy";
+
+	resets = <&pcom_usb_reset>;
+	reset-names = "core";
+
+	maximum-speed = "high-speed";
+
+	status = "okay";
+
+	ulpi {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb1_phy: phy@0 {
+			compatible = "qcom,qsd8250-usb-hs-phy";
+			reg = <0>;
 
 			#phy-cells = <0>;
-			status = "disabled";
+
+			qcom,init-seq = /bits/ 8 <
+				0x31 0x0c
+				0x32 0x31
+				0x0d 0x1d
+				0x10 0x1d
+			>;
+
+			resets = <&pcom_usb_reset>;
+			reset-names = "por";
 		};
-
-        /* ChipIdea USB Peripheral Core */
-        usb: usb@a0800000 {
-            compatible = "qcom,ci-hdrc-msm", "chipidea,usb2";
-            reg = <0xa0800000 0x200>;
-			interrupt-parent = <&intc>;
-            interrupts = <58>;
-
-            clocks = <&qsd8250_clk 2>, <&qsd8250_clk 3>;
-            clock-names = "core", "iface";
-
-            phys = <&hsusb_phy>;
-            phy-names = "usb-phy";
-            phy_type = "ulpi";
-            dr_mode = "peripheral"; /* Forces gadget mode */
-
-            ahb-burst-config = <0x0>;
-            ahb-mode-config = <0x0>;
-            disable-streaming;
-
-            status = "disabled";
-        };
+	};
+};
 
 	sdcc1: mmc@a0300000 {
 		compatible = "arm,pl18x", "arm,primecell";

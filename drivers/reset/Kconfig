@@ -416,6 +416,14 @@ config RESET_ZYNQMP
 	help
 	  This enables the reset controller driver for Xilinx ZynqMP SoCs.
 
+config RESET_QCOM_PCOM_USB
+	bool "Qualcomm proc_comm USB reset driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Reset controller for the USB link/PHY blocks on Qualcomm
+	  SoCs whose only reset path is a proc_comm RPC call (QSD8250
+	  and similar pre-GIC platforms).
+
 source "drivers/reset/amlogic/Kconfig"
 source "drivers/reset/hisilicon/Kconfig"
 source "drivers/reset/spacemit/Kconfig"
