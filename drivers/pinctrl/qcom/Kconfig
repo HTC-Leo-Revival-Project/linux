@@ -17,6 +17,20 @@ config PINCTRL_MSM
 
 source "drivers/pinctrl/qcom/Kconfig.msm"
 
+config PINCTRL_QSD8250
+	tristate "Qualcomm core pin controller driver"
+	depends on GPIOLIB
+	# OF for pinconf_generic_dt_node_to_map_group() from GENERIC_PINCONF
+	depends on OF
+	select QCOM_SCM
+	select PINMUX
+	select GENERIC_PINMUX_FUNCTIONS
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+
 config PINCTRL_QCOM_SPMI_PMIC
 	tristate "Qualcomm SPMI PMIC pin controller driver"
 	depends on OF && SPMI
