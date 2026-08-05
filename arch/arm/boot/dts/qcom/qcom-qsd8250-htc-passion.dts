@@ -139,6 +139,24 @@
 	};
 };
 
+&gpio {
+	sdcc2_default: sdcc2-default {
+		clk-pins {
+			pins = "gpio56";
+			function = "func1";
+			bias-disable;
+			drive-strength = <8>;
+		};
+
+		cmd-dat-pins {
+			pins = "gpio51", "gpio52", "gpio53", "gpio54", "gpio55";
+			function = "func1";
+			bias-pull-up;
+			drive-strength = <4>;
+		};
+	};
+};
+
 	&qsd8250_vreg {
 		status = "okay";
 
@@ -225,6 +243,9 @@
 	status = "okay";
 	vmmc-supply = <&gp6_sdcard>;
 	non-removable; 	// passions sdcard is not removable if you dont remove the battery so its kinda non removeable
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdcc2_default>;
 };
 
 &usb1 {
