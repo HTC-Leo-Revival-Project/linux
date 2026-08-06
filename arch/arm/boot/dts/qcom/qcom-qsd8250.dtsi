@@ -48,6 +48,22 @@
         regulator-boot-on;
     };
 
+	v1p8_fixed: v1p8-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-hs-v1p8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	v3p3_fixed: v3p3-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-hs-v3p3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -75,6 +91,13 @@
 	qsd8250_vreg: regulator-controller {
 		compatible = "qcom,qsd8250-vreg";
 		status = "disabled";
+
+		gp6_sdcard: gp6 {
+			regulator-name = "gp6";
+			qcom,vreg-id = <23>;
+			regulator-min-microvolt = <2850000>;
+			regulator-max-microvolt = <2850000>;
+		};
 	};
 
 		intc: interrupt-controller@ac000000 {
@@ -152,6 +175,7 @@
 			reg = <0xa9a00000 0x1000>;
 			interrupt-parent = <&sirc>;
 			clock-names = "core";
+			status = "disabled";
 		};
 
 		timer@ac100000 {
