@@ -248,38 +248,15 @@ enum {
 void msm_proc_comm_reset_modem_now(void);
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
 int pcom_gpio_tlmm_config(unsigned config, unsigned disable);
-int pcom_vreg_set_level(unsigned id, unsigned mv);
-int pcom_vreg_enable(unsigned id);
-int pcom_vreg_disable(unsigned id);
 int pcom_clock_enable(unsigned id);
 int pcom_clock_disable(unsigned id);
 int pcom_clock_is_enabled(unsigned id);
 int pcom_clock_set_rate(unsigned id, unsigned rate);
 int pcom_clock_get_rate(unsigned id);
 int pcom_set_clock_flags(unsigned id, unsigned flags);
-void pcom_vreg_control(unsigned vreg, unsigned level, unsigned state);
-void pcom_sdcard_power(int state);
-void pcom_sdcard_gpio_config(int instance);
 void pcom_usb_vbus_power(int state);
-void pcom_usb_reset_phy(void);
 void pcom_enable_hsusb_clk(void);
 void pcom_disable_hsusb_clk(void);
-void pcom_set_sdcard_clk_flags(int instance, int flags);
-void pcom_set_sdcard_clk(int instance, int rate);
-uint32_t pcom_get_sdcard_clk(int instance);
-void pcom_enable_sdcard_clk(int instance);
-void pcom_disable_sdcard_clk(int instance);
-void pcom_enable_sdcard_pclk(int instance);
-void pcom_disable_sdcard_pclk(int instance);
-uint32_t pcom_is_sdcard_clk_enabled(int instance);
-uint32_t pcom_is_sdcard_pclk_enabled(int instance);
-uint32_t pcom_is_uart_clk_enabled(int instance);
-uint32_t pcom_get_uart_clk(int uart_base_addr);
-void pcom_set_lcdc_clk(int rate);
-void pcom_enable_lcdc_pad_clk(void);
-void pcom_enable_lcdc_clk(void);
-uint32_t pcom_get_lcdc_clk(void);
-void pcom_end_cmds(void);
 bool is_pcom_probed(void);
 
 
