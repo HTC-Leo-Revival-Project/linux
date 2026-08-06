@@ -23,22 +23,6 @@
 
 	};
 
-	v1p8_fixed: v1p8-fixed {
-		compatible = "regulator-fixed";
-		regulator-name = "usb-hs-v1p8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-	};
-
-	v3p3_fixed: v3p3-fixed {
-		compatible = "regulator-fixed";
-		regulator-name = "usb-hs-v3p3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
 		gpio-keys {
 			compatible = "gpio-keys";
 
@@ -140,18 +124,11 @@
 
 	&qsd8250_vreg {
 		status = "okay";
-
-		gp6_sdcard: gp6 {
-			regulator-name = "gp6";
-			qcom,vreg-id = <23>;
-			regulator-min-microvolt = <2850000>;
-			regulator-max-microvolt = <2850000>;
-		};
 	};
 
 	&uartdm1 {
 		status = "okay";
-		clocks = <&qsd8250_clk 14>, <&qsd8250_clk 15>;
+		clocks = <&qsd8250_clk 6>, <&qsd8250_clk 7>;
 	};
 
 	&vibrator {
@@ -172,7 +149,7 @@
 
 	&qsd8250_clk {
 		status = "okay";
-    	qcom,clk-ids = <9 67 16 36 37 19>; // 0 1 2 3 4 5 6 7 8 9 10 11 12 14
+    	qcom,clk-ids = <9 67 16 36 37 52 78 80>; // 0 1 2 3 4 5 6 7
 	};
 
     &i2c0 {
