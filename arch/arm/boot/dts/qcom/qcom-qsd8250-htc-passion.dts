@@ -43,22 +43,6 @@
 		startup-delay-us = <3000>;  /* 3ms settling delay */
 	};
 
-	v1p8_fixed: v1p8-fixed {
-		compatible = "regulator-fixed";
-		regulator-name = "usb-hs-v1p8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-	};
-
-	v3p3_fixed: v3p3-fixed {
-		compatible = "regulator-fixed";
-		regulator-name = "usb-hs-v3p3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -125,8 +109,8 @@
 			no-map;
 		};
 
-		display_reserved: framebuffer@3b00000 {
-			reg = <0x3b00000 0x000c0000>;
+		display_reserved: framebuffer@2a00000 {
+			reg = <0x2a00000 0x00177000>;
 			no-map;
 		};
 
@@ -163,13 +147,6 @@
 		gp2_jogball: gp2 {
 			regulator-name = "gp2";
 			qcom,vreg-id = <21>;
-			regulator-min-microvolt = <2850000>;
-			regulator-max-microvolt = <2850000>;
-		};
-
-		gp6_sdcard: gp6 {
-			regulator-name = "gp6";
-			qcom,vreg-id = <23>;
 			regulator-min-microvolt = <2850000>;
 			regulator-max-microvolt = <2850000>;
 		};
@@ -270,7 +247,7 @@
 	ulpi {
 
 		usb1_phy: phy@0 {
-			clocks = <&qsd8250_clk 5>,
+			clocks = <&qsd8250_clk 4>,
 			         <&sleep_clk>;
 			clock-names = "ref", "sleep";
 
