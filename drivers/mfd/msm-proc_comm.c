@@ -198,13 +198,13 @@ EXPORT_SYMBOL(pcom_vreg_disable);
 
 int pcom_clock_enable(unsigned id)
 {
-	return msm_proc_comm(PCOM_CLKCTL_RPC_ENABLE, &id, 0);
+	return msm_proc_comm(PCOM_CLK_REGIME_SEC_ENABLE, &id, 0);
 }
 EXPORT_SYMBOL(pcom_clock_enable);
 
 int pcom_clock_disable(unsigned id)
 {
-	return msm_proc_comm(PCOM_CLKCTL_RPC_DISABLE, &id, 0);
+	return msm_proc_comm(PCOM_CLK_REGIME_SEC_DISABLE, &id, 0);
 }
 EXPORT_SYMBOL(pcom_clock_disable);
 
