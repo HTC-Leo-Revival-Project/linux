@@ -23,14 +23,6 @@
 
 #include <linux/mach-msm/msm-proc_comm.h>
 
-#ifndef PCOM_VREG_SWITCH
-#define PCOM_VREG_SWITCH 0x12
-#endif
-
-#ifndef PCOM_VREG_SET_LEVEL
-#define PCOM_VREG_SET_LEVEL 0x13
-#endif
-
 struct qsd_vreg {
 	struct regulator_desc desc;
 
